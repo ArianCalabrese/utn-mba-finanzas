@@ -22,4 +22,5 @@ urlpatterns = [
     path('api/bonds/', include('apps.bonds.urls')),
     path('api/macro/', include('apps.macro.urls')),
     path('api/alerts/', include('apps.alerts.urls')),
+    path('api/watchlist/', include('apps.watchlist.urls')),
 ]

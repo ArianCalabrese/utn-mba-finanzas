@@ -4,6 +4,7 @@ import {
   getIndicators, getSignals, getConviction,
   type TechnicalIndicators, type TechnicalSignals, type ConvictionResult,
 } from '@/application/api/technical';
+import { usePageStore } from '@/application/stores/pageStore';
 import { PageHeader, Card, Metric, Tabs } from '@/presentation/components/ui';
 import { HelpModal, HelpSection, HelpFormula } from '@/presentation/components/HelpModal';
 import { ApiError } from '@/application/api/client';
@@ -105,8 +106,27 @@ function ConvictionGauge({ score }: { score: number }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexDirection: 'column',
         }}>
-           <span style={{ fontSize: 26, fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--text-primary)' }}>{score}</span>
-         <span style={{ fontSize: 10,  color: 'var(--text-primary)'}}>/100</span>
+<span
+  style={{
+    fontSize: 26,
+    fontWeight: 800,
+    fontFamily: 'var(--mono)',
+    WebkitTextStroke: '1px rgba(50, 50, 200, 0.75)',
+    color
+  }}
+>
+  {score}
+</span>
+
+<span
+  style={{
+    fontSize: 10,
+    WebkitTextStroke: '0.5px white',
+    color
+  }}
+>
+  /100
+</span>
         </div>
       </div>
     </div>
@@ -311,14 +331,16 @@ const HELP: Record<HelpKey, { title: string; content: React.ReactNode }> = {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function TechnicalPage() {
-  const [ticker, setTicker] = useState('');
-  const [indicators, setIndicators] = useState<TechnicalIndicators | null>(null);
-  const [signals, setSignals] = useState<TechnicalSignals | null>(null);
-  const [conviction, setConviction] = useState<ConvictionResult | null>(null);
+  const { technical: stored, setTechnical: saveTechnical } = usePageStore();
+
+  const [ticker, setTicker] = useState(stored.ticker);
+  const [indicators, setIndicators] = useState<TechnicalIndicators | null>(stored.indicators);
+  const [signals, setSignals] = useState<TechnicalSignals | null>(stored.signals);
+  const [conviction, setConviction] = useState<ConvictionResult | null>(stored.conviction);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [openHelp, setOpenHelp] = useState<HelpKey | null>(null);
-  const [tab, setTab] = useState('indicadores');
+  const [tab, setTab] = useState(stored.tab || 'indicadores');
 
   const search = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -337,6 +359,7 @@ export function TechnicalPage() {
       setIndicators(ind);
       setSignals(sig);
       setConviction(conv);
+      saveTechnical({ ticker: ticker.trim(), indicators: ind, signals: sig, conviction: conv });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Error fetching data.');
     } finally {
@@ -375,7 +398,7 @@ export function TechnicalPage() {
               { id: 'conviction', label: 'Conviction Score' },
             ]}
             active={tab}
-            onChange={setTab}
+            onChange={(t) => { setTab(t); saveTechnical({ tab: t }); }}
           />
         )}
 

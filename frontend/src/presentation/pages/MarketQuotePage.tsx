@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Search } from 'lucide-react';
 import { getQuote, type Quote } from '@/application/api/market';
 import { getHistory } from '@/application/api/market';
+import { usePageStore } from '@/application/stores/pageStore';
 import { PageHeader, Card, Metric } from '@/presentation/components/ui';
 import { HelpModal, HelpSection, HelpFormula } from '@/presentation/components/HelpModal';
 import { ApiError } from '@/application/api/client';
@@ -82,9 +83,11 @@ const HELP: Record<HelpKey, { title: string; content: React.ReactNode }> = {
 };
 
 export function MarketQuotePage() {
-  const [ticker, setTicker] = useState('');
-  const [quote, setQuote] = useState<Quote | null>(null);
-  const [history, setHistory] = useState<{ date: string; close: number }[]>([]);
+  const { quote: stored, setQuote: saveQuote } = usePageStore();
+
+  const [ticker, setTicker] = useState(stored.ticker);
+  const [quote, setQuote] = useState<Quote | null>(stored.quote);
+  const [history, setHistory] = useState<{ date: string; close: number }[]>(stored.history);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [openHelp, setOpenHelp] = useState<HelpKey | null>(null);
@@ -101,8 +104,10 @@ export function MarketQuotePage() {
         getQuote(ticker.trim()),
         getHistory(ticker.trim(), '1y', '1d'),
       ]);
+      const mappedHist = hist.map(b => ({ date: b.date.slice(0, 10), close: b.close }));
       setQuote(q);
-      setHistory(hist.map(b => ({ date: b.date.slice(0, 10), close: b.close })));
+      setHistory(mappedHist);
+      saveQuote({ ticker: ticker.trim(), quote: q, history: mappedHist });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Error fetching data.');
     } finally {

@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import {
   Home,
   TrendingUp,
@@ -16,10 +16,9 @@ import {
   Wallet,
   Globe,
   Bell,
-  LogOut,
   type LucideIcon,
 } from "lucide-react";
-import { useAuthStore } from "@/application/stores/authStore";
+import { UserMenu } from "@/presentation/components/UserMenu";
 import "./AppLayout.css";
 
 const CALC_NAV: { to: string; Icon: LucideIcon; label: string; end?: boolean }[] = [
@@ -38,7 +37,7 @@ const MARKET_NAV: { to: string; Icon: LucideIcon; label: string }[] = [
   { to: "/mercado/cotizacion", Icon: Search, label: "Cotización" },
   { to: "/mercado/tecnico", Icon: LineChart, label: "Análisis Técnico" },
   { to: "/mercado/fundamental", Icon: BookOpen, label: "Análisis Fundamental" },
-  { to: "/mercado/portafolio", Icon: PieChart, label: "Portafolio" },
+  { to: "/mercado/portafolio", Icon: PieChart, label: "Optimización" },
   { to: "/mercado/bonos", Icon: Wallet, label: "Bonos" },
   { to: "/mercado/macro", Icon: Globe, label: "Régimen Macro" },
   { to: "/mercado/alertas", Icon: Bell, label: "Alertas DCA" },
@@ -49,14 +48,6 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { user, logout } = useAuthStore();
-  const navigate = useNavigate();
-
-  const handleLogout = async () => {
-    await logout();
-    navigate("/login");
-  };
-
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -103,15 +94,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
 
         <div className="sidebar-footer">
-          {user && (
-            <>
-              <span className="sidebar-user">{user.username}</span>
-              <button className="sidebar-logout" onClick={handleLogout} title="Cerrar sesión">
-                <LogOut size={14} />
-                Salir
-              </button>
-            </>
-          )}
+          <UserMenu />
         </div>
       </aside>
 

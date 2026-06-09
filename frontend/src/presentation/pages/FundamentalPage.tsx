@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { BookOpen } from 'lucide-react';
 import { getRatios, getDcf, getDividends, type DcfResult } from '@/application/api/fundamental';
+import { usePageStore } from '@/application/stores/pageStore';
 import { PageHeader, Card, Metric } from '@/presentation/components/ui';
 import { HelpModal, HelpSection, HelpFormula } from '@/presentation/components/HelpModal';
 import { ApiError } from '@/application/api/client';
@@ -144,20 +145,27 @@ const HELP: Record<HelpKey, { title: string; content: React.ReactNode }> = {
 };
 
 export function FundamentalPage() {
-  const [ticker, setTicker] = useState('');
-  const [activeTab, setActiveTab] = useState<Tab>('ratios');
+  const { fundamental: stored, setFundamental: saveFundamental } = usePageStore();
+
+  const [ticker, setTicker] = useState(stored.ticker);
+  const [activeTab, setActiveTab] = useState<Tab>((stored.activeTab as Tab) || 'ratios');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [openHelp, setOpenHelp] = useState<HelpKey | null>(null);
 
-  const [ratios, setRatios] = useState<Record<string, unknown> | null>(null);
-  const [dcf, setDcf] = useState<DcfResult | null>(null);
-  const [dividends, setDividends] = useState<Record<string, unknown> | null>(null);
+  const [ratios, setRatios] = useState<Record<string, unknown> | null>(stored.ratios);
+  const [dcf, setDcf] = useState<DcfResult | null>(stored.dcf);
+  const [dividends, setDividends] = useState<Record<string, unknown> | null>(stored.dividends);
 
   // DCF params
   const [wacc, setWacc] = useState('0.10');
   const [termGrowth, setTermGrowth] = useState('0.025');
   const [years, setYears] = useState('5');
+
+  const changeTab = (t: Tab) => {
+    setActiveTab(t);
+    saveFundamental({ activeTab: t });
+  };
 
   const searchRatios = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,6 +179,8 @@ export function FundamentalPage() {
       const [r, div] = await Promise.all([getRatios(ticker), getDividends(ticker)]);
       setRatios(r);
       setDividends(div);
+      saveFundamental({ ticker: ticker.trim(), ratios: r, dividends: div, dcf: null, activeTab: 'ratios' });
+      setActiveTab('ratios');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Error fetching data.');
     } finally {
@@ -190,6 +200,7 @@ export function FundamentalPage() {
       });
       setDcf(result);
       setActiveTab('dcf');
+      saveFundamental({ dcf: result, activeTab: 'dcf' });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Error running DCF.');
     } finally {
@@ -234,7 +245,7 @@ export function FundamentalPage() {
             {(['ratios', 'dcf', 'dividends'] as Tab[]).map(tab => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => changeTab(tab)}
                 style={{ padding: '6px 16px', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 550, background: activeTab === tab ? 'var(--accent-subtle)' : 'transparent', color: activeTab === tab ? 'var(--accent)' : 'var(--text-muted)', transition: 'all 0.12s' }}
               >
                 {tab === 'ratios' ? 'Ratios' : tab === 'dcf' ? 'DCF' : 'Dividendos'}

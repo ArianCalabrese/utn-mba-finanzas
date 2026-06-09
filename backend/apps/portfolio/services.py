@@ -3,8 +3,10 @@ import pandas as pd
 import yfinance as yf
 from scipy.optimize import minimize
 from apps.core.cache import get_cached
+from apps.market.services import get_quote
 
 PORTFOLIO_TTL = 900
+FX_TTL = 900
 
 
 def _daily_returns(tickers: list[str], period: str = '2y') -> pd.DataFrame:
@@ -173,4 +175,156 @@ def backtest_portfolio(
         'max_drawdown_pct': round(max_drawdown * 100, 2),
         'sharpe_ratio': round(sharpe, 4) if sharpe is not None else None,
         'equity_curve': curve.to_dict(orient='records'),
+    }
+
+
+# ─── Seguimiento de tenencias reales (Fase 1) ────────────────────────────────
+
+def get_fx_rate(frm: str, to: str) -> float | None:
+    """Devuelve cuántas unidades de `to` equivale 1 unidad de `frm`.
+
+    Usa el par FX de Yahoo (ej. 'USDARS=X'). None si no hay cotización.
+    """
+    frm, to = frm.upper().strip(), to.upper().strip()
+    if not frm or not to or frm == to:
+        return 1.0
+
+    def fetch():
+        df = yf.Ticker(f'{frm}{to}=X').history(period='5d', interval='1d')
+        if df.empty:
+            return None
+        closes = df['Close'].dropna()
+        return float(closes.iloc[-1]) if not closes.empty else None
+
+    return get_cached('fx', f'{frm}:{to}', FX_TTL, fetch)
+
+
+def _derive_positions(transactions: list) -> dict:
+    """Reduce los movimientos (orden cronológico) a posiciones por ticker.
+
+    Usa costo promedio ponderado: cada compra recalcula el promedio (DCA),
+    cada venta libera costo al promedio vigente y acumula P&L realizado.
+    """
+    positions: dict[str, dict] = {}
+    ordered = sorted(transactions, key=lambda t: (t.trade_date, t.created_at))
+
+    for txn in ordered:
+        ticker = txn.ticker.upper()
+        pos = positions.setdefault(ticker, {
+            'qty': 0.0, 'cost': 0.0, 'realized': 0.0, 'currency': txn.currency or 'USD',
+        })
+        if txn.currency:
+            pos['currency'] = txn.currency
+        qty, price, fees = float(txn.quantity), float(txn.price), float(txn.fees or 0)
+
+        if txn.side == 'BUY':
+            pos['qty'] += qty
+            pos['cost'] += qty * price + fees
+        else:  # SELL
+            if pos['qty'] > 0:
+                avg = pos['cost'] / pos['qty']
+                sell_qty = min(qty, pos['qty'])
+                pos['realized'] += (price * sell_qty - fees) - avg * sell_qty
+                pos['qty'] -= sell_qty
+                pos['cost'] -= avg * sell_qty
+
+    return positions
+
+
+def build_summary(portfolio) -> dict:
+    """Construye el resumen de una cartera con precios en vivo y P&L.
+
+    Valores nativos en la moneda de cada activo, convertidos a la moneda base
+    de la cartera para los totales consolidados.
+    """
+    base = (portfolio.base_currency or 'USD').upper()
+    derived = _derive_positions(list(portfolio.transactions.all()))
+
+    positions = []
+    fx_warning = False
+    total_invested = total_value = total_realized = 0.0
+
+    for ticker, pos in derived.items():
+        realized = round(pos['realized'], 2)
+        # Sumamos P&L realizado aunque la posición esté cerrada.
+        if pos['qty'] <= 1e-9:
+            if abs(realized) > 1e-9:
+                total_realized += realized  # convertido abajo si hace falta
+            continue
+
+        avg_cost = pos['cost'] / pos['qty']
+        invested_native = pos['cost']
+
+        price = None
+        currency = pos['currency']
+        name = None
+        try:
+            quote = get_quote(ticker)
+            price = quote.get('price')
+            currency = quote.get('currency') or currency
+            name = quote.get('name')
+        except Exception:
+            pass
+
+        price_available = price is not None
+        market_value_native = (price * pos['qty']) if price_available else invested_native
+        unrealized_native = market_value_native - invested_native
+        unrealized_pct = (unrealized_native / invested_native * 100) if invested_native else 0.0
+
+        fx = get_fx_rate(currency, base)
+        if fx is None:
+            fx_warning = True
+            fx = 1.0
+        invested_base = invested_native * fx
+        value_base = market_value_native * fx
+
+        total_invested += invested_base
+        total_value += value_base
+        total_realized += realized * fx
+
+        positions.append({
+            'ticker': ticker,
+            'name': name,
+            'quantity': round(pos['qty'], 6),
+            'avg_cost': round(avg_cost, 4),
+            'currency': currency,
+            'current_price': round(price, 4) if price_available else None,
+            'price_available': price_available,
+            'invested_native': round(invested_native, 2),
+            'market_value_native': round(market_value_native, 2),
+            'unrealized_native': round(unrealized_native, 2),
+            'unrealized_pct': round(unrealized_pct, 2),
+            'distance_to_entry_pct': round((price - avg_cost) / avg_cost * 100, 2) if price_available and avg_cost else None,
+            'dca_opportunity': bool(price_available and price < avg_cost),
+            'realized_native': realized,
+            'fx_rate': round(fx, 6),
+            'invested_base': round(invested_base, 2),
+            'market_value_base': round(value_base, 2),
+            'unrealized_base': round(value_base - invested_base, 2),
+        })
+
+    # Pesos sobre el valor de mercado consolidado.
+    for p in positions:
+        p['weight_pct'] = round(p['market_value_base'] / total_value * 100, 2) if total_value else 0.0
+
+    positions.sort(key=lambda p: p['market_value_base'], reverse=True)
+
+    total_unrealized = total_value - total_invested
+    return {
+        'portfolio': {
+            'id': portfolio.id,
+            'name': portfolio.name,
+            'category': portfolio.category,
+            'base_currency': base,
+        },
+        'positions': positions,
+        'totals': {
+            'base_currency': base,
+            'invested': round(total_invested, 2),
+            'market_value': round(total_value, 2),
+            'unrealized': round(total_unrealized, 2),
+            'unrealized_pct': round(total_unrealized / total_invested * 100, 2) if total_invested else 0.0,
+            'realized': round(total_realized, 2),
+            'fx_warning': fx_warning,
+        },
     }

@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'apps.bonds',
     'apps.macro',
     'apps.alerts',
+    'apps.watchlist',
 ]
 
 MIDDLEWARE = [

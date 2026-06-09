@@ -17,6 +17,8 @@ import { MarketQuotePage }      from "@/presentation/pages/MarketQuotePage";
 import { TechnicalPage }        from "@/presentation/pages/TechnicalPage";
 import { FundamentalPage }      from "@/presentation/pages/FundamentalPage";
 import { PortfolioPage }        from "@/presentation/pages/PortfolioPage";
+import { MyPortfolioPage }      from "@/presentation/pages/MyPortfolioPage";
+import { WatchlistPage }        from "@/presentation/pages/WatchlistPage";
 import { BondsApiPage }         from "@/presentation/pages/BondsApiPage";
 import { MacroPage }            from "@/presentation/pages/MacroPage";
 import { AlertsPage }           from "@/presentation/pages/AlertsPage";
@@ -46,6 +48,8 @@ export default function App() {
                 <Route path="/mercado/tecnico"        element={<TechnicalPage />} />
                 <Route path="/mercado/fundamental"    element={<FundamentalPage />} />
                 <Route path="/mercado/portafolio"     element={<PortfolioPage />} />
+                <Route path="/mercado/mi-portafolio"  element={<MyPortfolioPage />} />
+                <Route path="/mercado/watchlist"       element={<WatchlistPage />} />
                 <Route path="/mercado/bonos"          element={<BondsApiPage />} />
                 <Route path="/mercado/macro"          element={<MacroPage />} />
                 <Route path="/mercado/alertas"        element={<AlertsPage />} />

@@ -1,12 +1,16 @@
-import { useState } from 'react';
-import { PieChart as PieChartIcon } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { PieChart as PieChartIcon, ChevronDown } from 'lucide-react';
 import {
   optimizePortfolio,
   backtestPortfolio,
   computeCorrelation,
+  getHoldingTickers,
+  getPortfolios,
+  type Portfolio,
   type OptimizeResult,
   type BacktestResult,
 } from '@/application/api/portfolio';
+import { getWatchlistTickers, getWatchlists, type WatchlistMeta } from '@/application/api/watchlist';
 import { PageHeader, Card, Metric } from '@/presentation/components/ui';
 import { HelpModal, HelpSection, HelpFormula } from '@/presentation/components/HelpModal';
 import { ApiError } from '@/application/api/client';
@@ -121,6 +125,104 @@ function fmt(n: number | null | undefined, dec = 2): string {
   return n == null ? '—' : n.toFixed(dec);
 }
 
+// ─── Multi-select dropdown ────────────────────────────────────────────────────
+
+interface CheckItem { id: number; name: string; }
+
+function MultiCheckDropdown({
+  label, items, onLoad,
+}: {
+  label: string;
+  items: CheckItem[];
+  onLoad: (ids: number[]) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [confirming, setConfirming] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const toggle = (id: number) =>
+    setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+
+  const allSelected = items.length > 0 && selected.size === items.length;
+
+  const handleLoad = async () => {
+    if (selected.size === 0) return;
+    setConfirming(true);
+    try { await onLoad([...selected]); } finally { setConfirming(false); }
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button type="button" className="btn btn-ghost" onClick={() => setOpen(v => !v)}
+        style={{ display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+        {label}
+        <ChevronDown size={12} style={{ transition: 'transform 0.15s', transform: open ? 'rotate(180deg)' : 'none' }} />
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, minWidth: 220, zIndex: 300,
+          background: 'var(--bg-card)', border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-md)', boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+          padding: '6px 0',
+        }}>
+          {items.length === 0 ? (
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 14px', whiteSpace: 'nowrap' }}>
+              No hay elementos disponibles.
+            </p>
+          ) : (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 14px 6px', borderBottom: '1px solid var(--border)', marginBottom: 2 }}>
+                <button type="button" onClick={() => setSelected(allSelected ? new Set() : new Set(items.map(i => i.id)))}
+                  style={{ fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  {allSelected ? 'Ninguno' : 'Todos'}
+                </button>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{selected.size} seleccionado{selected.size !== 1 ? 's' : ''}</span>
+              </div>
+
+              <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                {items.map(item => (
+                  <label key={item.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '7px 14px',
+                    cursor: 'pointer', fontSize: 13, color: 'var(--text-secondary)', whiteSpace: 'nowrap',
+                  }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-raised)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                  >
+                    <input type="checkbox" checked={selected.has(item.id)} onChange={() => toggle(item.id)}
+                      style={{ accentColor: 'var(--accent)', flexShrink: 0 }} />
+                    {item.name}
+                  </label>
+                ))}
+              </div>
+
+              <div style={{ padding: '6px 14px 2px', borderTop: '1px solid var(--border)', marginTop: 2 }}>
+                <button type="button" className="btn btn-primary" onClick={handleLoad}
+                  disabled={selected.size === 0 || confirming}
+                  style={{ width: '100%', fontSize: 12 }}>
+                  {confirming ? 'Cargando…' : `Cargar tickers${selected.size > 0 ? ` (${selected.size})` : ''}`}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── PortfolioPage ────────────────────────────────────────────────────────────
+
 export function PortfolioPage() {
   const [tickerInput, setTickerInput] = useState('AAPL,MSFT,GOOGL,SPY');
   const [rfr, setRfr] = useState('0.05');
@@ -133,6 +235,14 @@ export function PortfolioPage() {
   const [optimized, setOptimized] = useState<OptimizeResult | null>(null);
   const [backtest, setBacktest] = useState<BacktestResult | null>(null);
   const [correlation, setCorrelation] = useState<{ correlation_matrix: Record<string, Record<string, number>>; beta_vs_benchmark: Record<string, number> } | null>(null);
+
+  const [portfoliosList, setPortfoliosList] = useState<Portfolio[]>([]);
+  const [watchlistsList, setWatchlistsList] = useState<WatchlistMeta[]>([]);
+
+  useEffect(() => {
+    getPortfolios().then(setPortfoliosList).catch(() => {});
+    getWatchlists().then(setWatchlistsList).catch(() => {});
+  }, []);
 
   const tickers = tickerInput.split(',').map(t => t.trim().toUpperCase()).filter(Boolean);
 
@@ -152,6 +262,34 @@ export function PortfolioPage() {
       setError(err instanceof ApiError ? err.message : 'Error.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMyTickers = async (ids: number[]) => {
+    setError(null);
+    try {
+      const { tickers } = await getHoldingTickers(ids);
+      if (tickers.length === 0) {
+        setError('Las carteras seleccionadas no tienen tenencias cargadas.');
+        return;
+      }
+      setTickerInput(tickers.join(','));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'No se pudieron cargar tus acciones.');
+    }
+  };
+
+  const loadWatchlistTickers = async (ids: number[]) => {
+    setError(null);
+    try {
+      const { tickers } = await getWatchlistTickers(ids);
+      if (tickers.length === 0) {
+        setError('Las listas seleccionadas están vacías.');
+        return;
+      }
+      setTickerInput(tickers.join(','));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'No se pudo cargar la lista de seguimiento.');
     }
   };
 
@@ -181,8 +319,20 @@ export function PortfolioPage() {
           <div style={{ display: 'flex', gap: 'var(--sp-3)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div style={{ flex: 1, minWidth: 200 }}>
               <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Tickers (separados por coma)</label>
-              <input value={tickerInput} onChange={e => setTickerInput(e.target.value)}
-                style={{ width: '100%', height: 38, padding: '0 var(--sp-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-raised)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'var(--sans)', outline: 'none' }} />
+              <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
+                <input value={tickerInput} onChange={e => setTickerInput(e.target.value)}
+                  style={{ flex: 1, height: 38, padding: '0 var(--sp-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-raised)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'var(--sans)', outline: 'none' }} />
+                <MultiCheckDropdown
+                  label="Mis acciones"
+                  items={portfoliosList.map(p => ({ id: p.id, name: p.name }))}
+                  onLoad={loadMyTickers}
+                />
+                <MultiCheckDropdown
+                  label="Mi seguimiento"
+                  items={watchlistsList.map(w => ({ id: w.id, name: w.name }))}
+                  onLoad={loadWatchlistTickers}
+                />
+              </div>
             </div>
             <div>
               <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Tasa libre de riesgo</label>

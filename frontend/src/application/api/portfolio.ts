@@ -66,3 +66,124 @@ export function backtestPortfolio(
     body: JSON.stringify({ tickers, weights, period }),
   });
 }
+
+// ─── Seguimiento de tenencias reales ─────────────────────────────────────────
+
+export type TxnSide = 'BUY' | 'SELL';
+
+export interface Portfolio {
+  id: number;
+  name: string;
+  category: string;
+  base_currency: string;
+  transaction_count: number;
+  created_at: string;
+}
+
+export interface Transaction {
+  id: number;
+  ticker: string;
+  side: TxnSide;
+  quantity: number;
+  price: number;
+  fees: number;
+  currency: string;
+  trade_date: string;
+  note: string;
+  created_at: string;
+}
+
+export interface Position {
+  ticker: string;
+  name: string | null;
+  quantity: number;
+  avg_cost: number;
+  currency: string;
+  current_price: number | null;
+  price_available: boolean;
+  invested_native: number;
+  market_value_native: number;
+  unrealized_native: number;
+  unrealized_pct: number;
+  distance_to_entry_pct: number | null;
+  dca_opportunity: boolean;
+  realized_native: number;
+  fx_rate: number;
+  invested_base: number;
+  market_value_base: number;
+  unrealized_base: number;
+  weight_pct: number;
+}
+
+export interface PortfolioSummary {
+  portfolio: { id: number; name: string; category: string; base_currency: string };
+  positions: Position[];
+  totals: {
+    base_currency: string;
+    invested: number;
+    market_value: number;
+    unrealized: number;
+    unrealized_pct: number;
+    realized: number;
+    fx_warning: boolean;
+  };
+}
+
+export function getPortfolios(): Promise<Portfolio[]> {
+  return apiFetch('/portfolio/portfolios/');
+}
+
+export function createPortfolio(data: {
+  name: string;
+  category?: string;
+  base_currency?: string;
+}): Promise<Portfolio> {
+  return apiFetch('/portfolio/portfolios/', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export function updatePortfolio(
+  id: number,
+  data: Partial<Pick<Portfolio, 'name' | 'category' | 'base_currency'>>,
+): Promise<Portfolio> {
+  return apiFetch(`/portfolio/portfolios/${id}/`, { method: 'PATCH', body: JSON.stringify(data) });
+}
+
+export function deletePortfolio(id: number): Promise<void> {
+  return apiFetch(`/portfolio/portfolios/${id}/`, { method: 'DELETE' });
+}
+
+export function getTransactions(portfolioId: number): Promise<Transaction[]> {
+  return apiFetch(`/portfolio/portfolios/${portfolioId}/transactions/`);
+}
+
+export function createTransaction(
+  portfolioId: number,
+  data: {
+    ticker: string;
+    side: TxnSide;
+    quantity: number;
+    price: number;
+    fees?: number;
+    currency?: string;
+    trade_date: string;
+    note?: string;
+  },
+): Promise<Transaction> {
+  return apiFetch(`/portfolio/portfolios/${portfolioId}/transactions/`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteTransaction(id: number): Promise<void> {
+  return apiFetch(`/portfolio/transactions/${id}/`, { method: 'DELETE' });
+}
+
+export function getPortfolioSummary(portfolioId: number): Promise<PortfolioSummary> {
+  return apiFetch(`/portfolio/portfolios/${portfolioId}/summary/`);
+}
+
+export function getHoldingTickers(portfolioIds?: number[]): Promise<{ tickers: string[] }> {
+  const q = portfolioIds?.length ? `?portfolios=${portfolioIds.join(',')}` : '';
+  return apiFetch(`/portfolio/tickers/${q}`);
+}
