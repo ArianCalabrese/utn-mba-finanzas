@@ -3,6 +3,7 @@ import { Globe } from 'lucide-react';
 import { getMarketRegime, getRelativeStrength, type MarketRegimeData, type RelativeStrengthData } from '@/application/api/macro';
 import { PageHeader, Card, Metric } from '@/presentation/components/ui';
 import { ApiError } from '@/application/api/client';
+import { useToast } from '@/application/stores/toastStore';
 
 function fmt(n: number | null | undefined, dec = 2): string {
   return n == null ? '—' : n.toFixed(dec);
@@ -60,21 +61,18 @@ function VixGauge({ vix }: { vix: number }) {
 export function MacroPage() {
   const [regime, setRegime] = useState<MarketRegimeData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   const [rsTicker, setRsTicker] = useState('');
   const [rsPeriod, setRsPeriod] = useState('6mo');
   const [rs, setRs] = useState<RelativeStrengthData | null>(null);
   const [rsLoading, setRsLoading] = useState(false);
-  const [rsError, setRsError] = useState<string | null>(null);
+  const toast = useToast();
 
   const loadRegime = async () => {
     setLoading(true);
-    setError(null);
     try {
       setRegime(await getMarketRegime());
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Error cargando datos macro.');
+      toast.error(e instanceof ApiError ? e.message : 'Error cargando datos macro.');
     } finally {
       setLoading(false);
     }
@@ -84,11 +82,10 @@ export function MacroPage() {
     e.preventDefault();
     if (!rsTicker.trim()) return;
     setRsLoading(true);
-    setRsError(null);
     try {
       setRs(await getRelativeStrength(rsTicker.trim(), '%5EGSPC', rsPeriod));
     } catch (e) {
-      setRsError(e instanceof ApiError ? e.message : 'Error cargando fuerza relativa.');
+      toast.error(e instanceof ApiError ? e.message : 'Error cargando fuerza relativa.');
     } finally {
       setRsLoading(false);
     }
@@ -115,7 +112,6 @@ export function MacroPage() {
             {loading ? 'Cargando datos macro…' : 'Cargar datos de mercado'}
           </button>
         )}
-        {error && <p style={{ color: 'var(--negative)', fontSize: 13, marginBottom: 'var(--sp-4)' }}>{error}</p>}
 
         {regime && (
           <>
@@ -255,7 +251,6 @@ export function MacroPage() {
               {rsLoading ? 'Calculando…' : 'Calcular'}
             </button>
           </form>
-          {rsError && <p style={{ color: 'var(--negative)', fontSize: 13 }}>{rsError}</p>}
           {rs && (
             <div className="metrics-grid">
               <Metric label={rs.ticker} value={`${rs.ticker_return_pct > 0 ? '+' : ''}${fmt(rs.ticker_return_pct)}%`}

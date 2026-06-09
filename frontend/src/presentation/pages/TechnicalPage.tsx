@@ -8,6 +8,7 @@ import { usePageStore } from '@/application/stores/pageStore';
 import { PageHeader, Card, Metric, Tabs } from '@/presentation/components/ui';
 import { HelpModal, HelpSection, HelpFormula } from '@/presentation/components/HelpModal';
 import { ApiError } from '@/application/api/client';
+import { useToast } from '@/application/stores/toastStore';
 
 function fmt(n: number | null | undefined, dec = 2): string {
   return n == null ? '—' : n.toFixed(dec);
@@ -338,15 +339,14 @@ export function TechnicalPage() {
   const [signals, setSignals] = useState<TechnicalSignals | null>(stored.signals);
   const [conviction, setConviction] = useState<ConvictionResult | null>(stored.conviction);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [openHelp, setOpenHelp] = useState<HelpKey | null>(null);
   const [tab, setTab] = useState(stored.tab || 'indicadores');
+  const toast = useToast();
 
   const search = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ticker.trim()) return;
     setLoading(true);
-    setError(null);
     setIndicators(null);
     setSignals(null);
     setConviction(null);
@@ -361,7 +361,7 @@ export function TechnicalPage() {
       setConviction(conv);
       saveTechnical({ ticker: ticker.trim(), indicators: ind, signals: sig, conviction: conv });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Error fetching data.');
+      toast.error(err instanceof ApiError ? err.message : 'Error obteniendo análisis técnico.');
     } finally {
       setLoading(false);
     }
@@ -389,7 +389,6 @@ export function TechnicalPage() {
           </button>
         </form>
 
-        {error && <p style={{ color: 'var(--negative)', fontSize: 13, marginBottom: 'var(--sp-4)' }}>{error}</p>}
 
         {(indicators || signals || conviction) && (
           <Tabs

@@ -5,6 +5,7 @@ import { usePageStore } from '@/application/stores/pageStore';
 import { PageHeader, Card, Metric } from '@/presentation/components/ui';
 import { HelpModal, HelpSection, HelpFormula } from '@/presentation/components/HelpModal';
 import { ApiError } from '@/application/api/client';
+import { useToast } from '@/application/stores/toastStore';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 function fmt(n: unknown, dec = 2, prefix = ''): string {
@@ -150,8 +151,8 @@ export function FundamentalPage() {
   const [ticker, setTicker] = useState(stored.ticker);
   const [activeTab, setActiveTab] = useState<Tab>((stored.activeTab as Tab) || 'ratios');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [openHelp, setOpenHelp] = useState<HelpKey | null>(null);
+  const toast = useToast();
 
   const [ratios, setRatios] = useState<Record<string, unknown> | null>(stored.ratios);
   const [dcf, setDcf] = useState<DcfResult | null>(stored.dcf);
@@ -171,7 +172,6 @@ export function FundamentalPage() {
     e.preventDefault();
     if (!ticker.trim()) return;
     setLoading(true);
-    setError(null);
     setRatios(null);
     setDcf(null);
     setDividends(null);
@@ -182,7 +182,7 @@ export function FundamentalPage() {
       saveFundamental({ ticker: ticker.trim(), ratios: r, dividends: div, dcf: null, activeTab: 'ratios' });
       setActiveTab('ratios');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Error fetching data.');
+      toast.error(err instanceof ApiError ? err.message : 'Error obteniendo análisis fundamental.');
     } finally {
       setLoading(false);
     }
@@ -191,7 +191,6 @@ export function FundamentalPage() {
   const runDcf = async () => {
     if (!ticker.trim()) return;
     setLoading(true);
-    setError(null);
     try {
       const result = await getDcf(ticker, {
         wacc: parseFloat(wacc),
@@ -202,7 +201,7 @@ export function FundamentalPage() {
       setActiveTab('dcf');
       saveFundamental({ dcf: result, activeTab: 'dcf' });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Error running DCF.');
+      toast.error(err instanceof ApiError ? err.message : 'Error ejecutando el DCF.');
     } finally {
       setLoading(false);
     }
@@ -238,7 +237,6 @@ export function FundamentalPage() {
           </button>
         </form>
 
-        {error && <p style={{ color: 'var(--negative)', fontSize: 13, marginBottom: 'var(--sp-4)' }}>{error}</p>}
 
         {(ratios || dcf) && (
           <div style={{ display: 'flex', gap: 'var(--sp-2)', marginBottom: 'var(--sp-5)', borderBottom: '1px solid var(--border)', paddingBottom: 'var(--sp-1)' }}>

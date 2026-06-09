@@ -229,8 +229,8 @@ export function PortfolioPage() {
   const [period, setPeriod] = useState('1y');
   const [activeTab, setActiveTab] = useState<Tab>('optimize');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [openHelp, setOpenHelp] = useState<HelpKey | null>(null);
+  const toast = useToast();
 
   const [optimized, setOptimized] = useState<OptimizeResult | null>(null);
   const [backtest, setBacktest] = useState<BacktestResult | null>(null);
@@ -249,7 +249,6 @@ export function PortfolioPage() {
   const runOptimize = async () => {
     if (tickers.length < 2) return;
     setLoading(true);
-    setError(null);
     try {
       const [opt, corr] = await Promise.all([
         optimizePortfolio(tickers, parseFloat(rfr)),
@@ -259,51 +258,50 @@ export function PortfolioPage() {
       setCorrelation(corr);
       setActiveTab('optimize');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Error.');
+      toast.error(err instanceof ApiError ? err.message : 'Error optimizando el portafolio.');
     } finally {
       setLoading(false);
     }
   };
 
   const loadMyTickers = async (ids: number[]) => {
-    setError(null);
     try {
       const { tickers } = await getHoldingTickers(ids);
       if (tickers.length === 0) {
-        setError('Las carteras seleccionadas no tienen tenencias cargadas.');
+        toast.info('Las carteras seleccionadas no tienen tenencias cargadas.');
         return;
       }
       setTickerInput(tickers.join(','));
+      toast.success(`${tickers.length} tickers cargados desde tus carteras.`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'No se pudieron cargar tus acciones.');
+      toast.error(err instanceof ApiError ? err.message : 'No se pudieron cargar tus acciones.');
     }
   };
 
   const loadWatchlistTickers = async (ids: number[]) => {
-    setError(null);
     try {
       const { tickers } = await getWatchlistTickers(ids);
       if (tickers.length === 0) {
-        setError('Las listas seleccionadas están vacías.');
+        toast.info('Las listas seleccionadas están vacías.');
         return;
       }
       setTickerInput(tickers.join(','));
+      toast.success(`${tickers.length} tickers cargados desde tu seguimiento.`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'No se pudo cargar la lista de seguimiento.');
+      toast.error(err instanceof ApiError ? err.message : 'No se pudo cargar la lista de seguimiento.');
     }
   };
 
   const runBacktest = async () => {
     if (!optimized || tickers.length < 2) return;
     setLoading(true);
-    setError(null);
     const weights = tickers.map(t => optimized.max_sharpe.weights[t] ?? 0);
     try {
       const result = await backtestPortfolio(tickers, weights, period);
       setBacktest(result);
       setActiveTab('backtest');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Error.');
+      toast.error(err instanceof ApiError ? err.message : 'Error ejecutando el backtest.');
     } finally {
       setLoading(false);
     }
@@ -351,7 +349,6 @@ export function PortfolioPage() {
           </div>
         </Card>
 
-        {error && <p style={{ color: 'var(--negative)', fontSize: 13, marginBottom: 'var(--sp-4)' }}>{error}</p>}
 
         {(optimized || backtest) && (
           <div style={{ display: 'flex', gap: 'var(--sp-2)', marginBottom: 'var(--sp-5)', borderBottom: '1px solid var(--border)', paddingBottom: 'var(--sp-1)' }}>

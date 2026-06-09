@@ -7,6 +7,7 @@ import {
 } from '@/application/api/alerts';
 import { PageHeader, Card } from '@/presentation/components/ui';
 import { ApiError } from '@/application/api/client';
+import { useToast } from '@/application/stores/toastStore';
 
 function fmt(n: number | null | undefined): string {
   return n == null ? 'nunca' : new Date(n as unknown as string).toLocaleDateString('es-AR', {
@@ -65,7 +66,7 @@ function ConditionRow({
 function AlertCard({ alert, onToggle, onDelete, onCheck }: {
   alert: Alert;
   onToggle: (id: number, active: boolean) => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: number, name: string) => void;
   onCheck: (id: number) => void;
 }) {
   const [checkResult, setCheckResult] = useState<AlertCheckResult | null>(null);
@@ -112,7 +113,7 @@ function AlertCard({ alert, onToggle, onDelete, onCheck }: {
           <button onClick={handleCheck} disabled={checking} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', padding: 4 }} title="Verificar ahora">
             <Play size={14} />
           </button>
-          <button onClick={() => onDelete(alert.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--negative)', padding: 4 }} title="Eliminar">
+          <button onClick={() => onDelete(alert.id, alert.name)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--negative)', padding: 4 }} title="Eliminar">
             <Trash2 size={14} />
           </button>
         </div>
@@ -162,8 +163,8 @@ function AlertCard({ alert, onToggle, onDelete, onCheck }: {
 export function AlertsPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const toast = useToast();
 
   // Form state
   const [formTicker, setFormTicker] = useState('');
@@ -178,7 +179,7 @@ export function AlertsPage() {
   useEffect(() => {
     getAlerts()
       .then(setAlerts)
-      .catch(() => setError('Error cargando alertas.'))
+      .catch(() => toast.error('Error cargando alertas.'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -223,6 +224,7 @@ export function AlertsPage() {
       setFormName('');
       setFormConditions([{ path: 'rsi_14', operator: '<', value: 35 }]);
       setFormOperator('AND');
+      toast.success(`Alerta "${created.name}" creada.`);
     } catch (e) {
       setFormError(e instanceof ApiError ? e.message : 'Error creando alerta.');
     } finally {
@@ -234,14 +236,20 @@ export function AlertsPage() {
     try {
       const updated = await toggleAlert(id, active);
       setAlerts(prev => prev.map(a => a.id === id ? updated : a));
-    } catch { /* noop */ }
+      toast.info(active ? 'Alerta activada.' : 'Alerta pausada.');
+    } catch {
+      toast.error('Error actualizando la alerta.');
+    }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: number, name: string) => {
     try {
       await deleteAlert(id);
       setAlerts(prev => prev.filter(a => a.id !== id));
-    } catch { /* noop */ }
+      toast.success(`Alerta "${name}" eliminada.`);
+    } catch {
+      toast.error('Error eliminando la alerta.');
+    }
   };
 
   return (
@@ -262,7 +270,6 @@ export function AlertsPage() {
           </button>
         </div>
 
-        {error && <p style={{ color: 'var(--negative)', fontSize: 13, marginBottom: 'var(--sp-4)' }}>{error}</p>}
 
         {/* Create form */}
         {showForm && (

@@ -6,6 +6,7 @@ import { usePageStore } from '@/application/stores/pageStore';
 import { PageHeader, Card, Metric } from '@/presentation/components/ui';
 import { HelpModal, HelpSection, HelpFormula } from '@/presentation/components/HelpModal';
 import { ApiError } from '@/application/api/client';
+import { useToast } from '@/application/stores/toastStore';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 function fmt(n: number | null | undefined, decimals = 2): string {
@@ -89,14 +90,13 @@ export function MarketQuotePage() {
   const [quote, setQuote] = useState<Quote | null>(stored.quote);
   const [history, setHistory] = useState<{ date: string; close: number }[]>(stored.history);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [openHelp, setOpenHelp] = useState<HelpKey | null>(null);
+  const toast = useToast();
 
   const search = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ticker.trim()) return;
     setLoading(true);
-    setError(null);
     setQuote(null);
     setHistory([]);
     try {
@@ -109,7 +109,7 @@ export function MarketQuotePage() {
       setHistory(mappedHist);
       saveQuote({ ticker: ticker.trim(), quote: q, history: mappedHist });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Error fetching data.');
+      toast.error(err instanceof ApiError ? err.message : 'Error obteniendo cotización.');
     } finally {
       setLoading(false);
     }
@@ -144,7 +144,6 @@ export function MarketQuotePage() {
           </button>
         </form>
 
-        {error && <p style={{ color: 'var(--negative)', fontSize: 13, marginBottom: 'var(--sp-4)' }}>{error}</p>}
 
         {quote && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-5)' }}>

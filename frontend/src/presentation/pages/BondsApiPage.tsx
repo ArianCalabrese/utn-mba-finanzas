@@ -4,6 +4,7 @@ import { getBondPrice, getBondYtm, getBondDuration, type BondPriceResult, type B
 import { PageHeader, Card, Metric } from '@/presentation/components/ui';
 import { HelpModal, HelpSection, HelpFormula } from '@/presentation/components/HelpModal';
 import { ApiError } from '@/application/api/client';
+import { useToast } from '@/application/stores/toastStore';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 type Mode = 'price' | 'ytm' | 'duration';
@@ -89,7 +90,6 @@ const FREQUENCY_OPTIONS = [
 export function BondsApiPage() {
   const [mode, setMode] = useState<Mode>('price');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [openHelp, setOpenHelp] = useState<HelpKey | null>(null);
 
   const [form, setForm] = useState({
@@ -116,9 +116,10 @@ export function BondsApiPage() {
     ytm: parseFloat(form.ytm),
   });
 
+  const toast = useToast();
+
   const calculate = async () => {
     setLoading(true);
-    setError(null);
     try {
       if (mode === 'price') {
         setPriceResult(await getBondPrice(payload()));
@@ -128,7 +129,7 @@ export function BondsApiPage() {
         setDurationResult(await getBondDuration(payload()));
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Error en el cálculo.');
+      toast.error(err instanceof ApiError ? err.message : 'Error en el cálculo del bono.');
     } finally {
       setLoading(false);
     }
@@ -177,7 +178,6 @@ export function BondsApiPage() {
             </div>
           </div>
 
-          {error && <p style={{ color: 'var(--negative)', fontSize: 13, marginBottom: 'var(--sp-3)' }}>{error}</p>}
           <button className="btn btn-primary" onClick={calculate} disabled={loading}>
             {loading ? 'Calculando…' : 'Calcular'}
           </button>
