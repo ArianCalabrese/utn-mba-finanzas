@@ -14,6 +14,7 @@ import { getWatchlistTickers, getWatchlists, type WatchlistMeta } from '@/applic
 import { PageHeader, Card, Metric } from '@/presentation/components/ui';
 import { HelpModal, HelpSection, HelpFormula } from '@/presentation/components/HelpModal';
 import { ApiError } from '@/application/api/client';
+import { useToast } from '@/application/stores/toastStore';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   ScatterChart, Scatter, ReferenceLine,

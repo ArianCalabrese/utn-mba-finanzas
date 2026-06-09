@@ -52,11 +52,16 @@ def calculate_ytm(
         )
 
     return {
-        'ytm': round(ytm, 6),
-        'ytm_pct': round(ytm * 100, 4),
+        'ytm_annual': round(ytm, 6),
+        'ytm_periodic': round(ytm / frequency, 6),
+        'ytm_annual_pct': round(ytm * 100, 4),
+        'ytm_periodic_pct': round(ytm / frequency * 100, 4),
         'market_price': market_price,
-        'face_value': face,
+        'face': face,
+        'face_value': face,          # backwards compat
         'coupon_rate': coupon_rate,
+        'periods': periods,
+        'frequency': frequency,
     }
 
 
