@@ -224,7 +224,7 @@ function MultiCheckDropdown({
 // ─── PortfolioPage ────────────────────────────────────────────────────────────
 
 export function PortfolioPage() {
-  const [tickerInput, setTickerInput] = useState('AAPL,MSFT,GOOGL,SPY');
+  const [tickerInput, setTickerInput] = useState('');
   const [rfr, setRfr] = useState('0.05');
   const [period, setPeriod] = useState('1y');
   const [activeTab, setActiveTab] = useState<Tab>('optimize');
@@ -320,7 +320,7 @@ export function PortfolioPage() {
             <div style={{ flex: 1, minWidth: 200 }}>
               <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Tickers (separados por coma)</label>
               <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
-                <input value={tickerInput} onChange={e => setTickerInput(e.target.value)}
+                <input value={tickerInput} onChange={e => setTickerInput(e.target.value)} placeholder="Ej: AAPL,MSFT,GOOGL,SPY"
                   style={{ flex: 1, height: 38, padding: '0 var(--sp-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-raised)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'var(--sans)', outline: 'none' }} />
                 <MultiCheckDropdown
                   label="Mis acciones"
