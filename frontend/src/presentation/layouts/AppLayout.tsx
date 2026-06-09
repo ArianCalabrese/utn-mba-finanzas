@@ -14,6 +14,8 @@ import {
   BookOpen,
   PieChart,
   Wallet,
+  Globe,
+  Bell,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
@@ -38,6 +40,8 @@ const MARKET_NAV: { to: string; Icon: LucideIcon; label: string }[] = [
   { to: "/mercado/fundamental", Icon: BookOpen, label: "Análisis Fundamental" },
   { to: "/mercado/portafolio", Icon: PieChart, label: "Portafolio" },
   { to: "/mercado/bonos", Icon: Wallet, label: "Bonos" },
+  { to: "/mercado/macro", Icon: Globe, label: "Régimen Macro" },
+  { to: "/mercado/alertas", Icon: Bell, label: "Alertas DCA" },
 ];
 
 interface AppLayoutProps {

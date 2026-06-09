@@ -20,4 +20,6 @@ urlpatterns = [
     path('api/fundamental/', include('apps.fundamental.urls')),
     path('api/portfolio/', include('apps.portfolio.urls')),
     path('api/bonds/', include('apps.bonds.urls')),
+    path('api/macro/', include('apps.macro.urls')),
+    path('api/alerts/', include('apps.alerts.urls')),
 ]

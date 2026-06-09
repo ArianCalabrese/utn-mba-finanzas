@@ -62,3 +62,41 @@ def sma(close: pd.Series, period: int) -> pd.Series:
 
 def ema(close: pd.Series, period: int) -> pd.Series:
     return close.ewm(span=period, adjust=False).mean()
+
+
+def adx(
+    high: pd.Series,
+    low: pd.Series,
+    close: pd.Series,
+    period: int = 14,
+) -> tuple[pd.Series, pd.Series, pd.Series]:
+    tr = pd.concat(
+        [high - low, (high - close.shift()).abs(), (low - close.shift()).abs()],
+        axis=1,
+    ).max(axis=1)
+
+    plus_dm = high.diff()
+    minus_dm = -(low.diff())
+    plus_dm = plus_dm.where((plus_dm > minus_dm) & (plus_dm > 0), 0.0)
+    minus_dm = minus_dm.where((minus_dm > plus_dm) & (minus_dm > 0), 0.0)
+
+    atr_ = tr.ewm(com=period - 1, adjust=False).mean()
+    plus_di = 100 * plus_dm.ewm(com=period - 1, adjust=False).mean() / atr_.replace(0, np.nan)
+    minus_di = 100 * minus_dm.ewm(com=period - 1, adjust=False).mean() / atr_.replace(0, np.nan)
+
+    di_sum = (plus_di + minus_di).replace(0, np.nan)
+    dx = ((plus_di - minus_di).abs() / di_sum * 100).fillna(0)
+    adx_val = dx.ewm(com=period - 1, adjust=False).mean()
+
+    return adx_val, plus_di, minus_di
+
+
+def obv(close: pd.Series, volume: pd.Series) -> pd.Series:
+    direction = np.sign(close.diff()).fillna(0)
+    return (direction * volume).cumsum()
+
+
+def z_score(close: pd.Series, period: int = 200) -> pd.Series:
+    sma_ = close.rolling(period).mean()
+    std_ = close.rolling(period).std().replace(0, np.nan)
+    return (close - sma_) / std_
