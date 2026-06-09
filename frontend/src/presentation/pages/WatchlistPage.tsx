@@ -7,6 +7,7 @@ import {
 } from '@/application/api/watchlist';
 import { PageHeader, Card } from '@/presentation/components/ui';
 import { ApiError } from '@/application/api/client';
+import { useToast } from '@/application/stores/toastStore';
 
 function fmt(n: number | null | undefined, dec = 2): string {
   if (n == null) return '—';
@@ -50,6 +51,7 @@ export function WatchlistPage() {
   const [tickerError, setTickerError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
 
+  const toast = useToast();
   const selected = lists.find(l => l.id === selectedId) ?? null;
 
   useEffect(() => {
@@ -89,6 +91,7 @@ export function WatchlistPage() {
       setSelectedId(created.id);
       setShowNewWL(false);
       setWlName(''); setWlDesc('');
+      toast.success(`Lista "${created.name}" creada.`);
     } catch (e) {
       setWlError(e instanceof ApiError ? e.message : 'Error creando la lista.');
     }
@@ -102,7 +105,10 @@ export function WatchlistPage() {
       const rest = lists.filter(l => l.id !== selected.id);
       setLists(rest);
       setSelectedId(rest.length ? rest[0].id : null);
-    } catch { setError('Error eliminando la lista.'); }
+      toast.success(`Lista "${selected.name}" eliminada.`);
+    } catch {
+      toast.error('Error eliminando la lista.');
+    }
   };
 
   const handleAddTicker = async (e: React.FormEvent) => {
@@ -117,17 +123,21 @@ export function WatchlistPage() {
       setShowAddTicker(false);
       await loadItems(selectedId);
       setLists(prev => prev.map(l => l.id === selectedId ? { ...l, item_count: l.item_count + 1 } : l));
+      toast.success(`${ticker} agregado a la lista.`);
     } catch (e) {
       setTickerError(e instanceof ApiError ? e.message : 'Error agregando el ticker.');
     } finally { setAdding(false); }
   };
 
-  const handleRemove = async (itemId: number) => {
+  const handleRemove = async (itemId: number, ticker: string) => {
     try {
       await removeFromWatchlist(itemId);
       setItems(prev => prev.filter(i => i.id !== itemId));
       setLists(prev => prev.map(l => l.id === selectedId ? { ...l, item_count: Math.max(0, l.item_count - 1) } : l));
-    } catch { /* noop */ }
+      toast.info(`${ticker} quitado de la lista.`);
+    } catch {
+      toast.error('Error al quitar el ticker.');
+    }
   };
 
   return (
@@ -295,7 +305,7 @@ export function WatchlistPage() {
                           <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)' }}>{fmtLarge(item.market_cap)}</td>
                           <td style={{ textAlign: 'left', padding: '10px 12px', color: 'var(--text-muted)', maxWidth: 160, fontSize: 12 }}>{item.note || '—'}</td>
                           <td style={{ padding: '10px 12px' }}>
-                            <button onClick={() => handleRemove(item.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--negative)', padding: 4 }} title="Quitar">
+                            <button onClick={() => handleRemove(item.id, item.ticker)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--negative)', padding: 4 }} title="Quitar">
                               <Trash2 size={14} />
                             </button>
                           </td>

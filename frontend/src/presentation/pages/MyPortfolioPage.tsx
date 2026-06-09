@@ -8,6 +8,7 @@ import {
 } from '@/application/api/portfolio';
 import { PageHeader, Card, Metric } from '@/presentation/components/ui';
 import { ApiError } from '@/application/api/client';
+import { useToast } from '@/application/stores/toastStore';
 
 const CURRENCIES = ['USD', 'ARS', 'EUR', 'BRL', 'GBP', 'MXN', 'CLP'];
 
@@ -60,6 +61,7 @@ export function MyPortfolioPage() {
   const [saving, setSaving] = useState(false);
   const [showTxns, setShowTxns] = useState(false);
 
+  const toast = useToast();
   const selected = portfolios.find(p => p.id === selectedId) ?? null;
 
   useEffect(() => {
@@ -99,6 +101,7 @@ export function MyPortfolioPage() {
       setSelectedId(created.id);
       setShowNewPf(false);
       setPfName(''); setPfCategory(''); setPfCurrency('USD');
+      toast.success(`Cartera "${created.name}" creada.`);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Error creando la cartera.');
     }
@@ -112,8 +115,9 @@ export function MyPortfolioPage() {
       const rest = portfolios.filter(p => p.id !== selected.id);
       setPortfolios(rest);
       setSelectedId(rest.length ? rest[0].id : null);
+      toast.success(`Cartera "${selected.name}" eliminada.`);
     } catch {
-      setError('Error eliminando la cartera.');
+      toast.error('Error eliminando la cartera.');
     }
   };
 
@@ -143,6 +147,7 @@ export function MyPortfolioPage() {
       setShowTxnForm(false);
       await loadSummary(selectedId);
       setPortfolios(prev => prev.map(p => p.id === selectedId ? { ...p, transaction_count: p.transaction_count + 1 } : p));
+      toast.success(`Movimiento registrado para ${txn.ticker.toUpperCase().trim()}.`);
     } catch (e) {
       setTxnError(e instanceof ApiError ? e.message : 'Error guardando el movimiento.');
     } finally {
@@ -150,12 +155,15 @@ export function MyPortfolioPage() {
     }
   };
 
-  const handleDeleteTxn = async (id: number) => {
+  const handleDeleteTxn = async (id: number, ticker: string) => {
     if (selectedId == null) return;
     try {
       await deleteTransaction(id);
       await loadSummary(selectedId);
-    } catch { /* noop */ }
+      toast.info(`Movimiento de ${ticker} eliminado.`);
+    } catch {
+      toast.error('Error eliminando el movimiento.');
+    }
   };
 
   const base = summary?.totals.base_currency ?? selected?.base_currency ?? 'USD';
@@ -421,7 +429,7 @@ export function MyPortfolioPage() {
                                 <td style={{ padding: '6px 10px', fontFamily: 'var(--mono)' }}>{t.fees}</td>
                                 <td style={{ textAlign: 'left', padding: '6px 10px', color: 'var(--text-muted)' }}>{t.note}</td>
                                 <td style={{ padding: '6px 10px' }}>
-                                  <button onClick={() => handleDeleteTxn(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--negative)', padding: 2 }} title="Eliminar">
+                                  <button onClick={() => handleDeleteTxn(t.id, t.ticker)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--negative)', padding: 2 }} title="Eliminar">
                                     <Trash2 size={13} />
                                   </button>
                                 </td>

@@ -19,6 +19,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { UserMenu } from "@/presentation/components/UserMenu";
+import { Toaster } from "@/presentation/components/Toaster";
 import "./AppLayout.css";
 
 const CALC_NAV: { to: string; Icon: LucideIcon; label: string; end?: boolean }[] = [
@@ -99,6 +100,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       </aside>
 
       <main className="main-content">{children}</main>
+      <Toaster />
     </div>
   );
 }
