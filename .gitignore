@@ -1,0 +1,98 @@
+# ==========================================
+# General
+# ==========================================
+
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# ==========================================
+# Python / Django
+# ==========================================
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Django
+db.sqlite3
+db.sqlite3-journal
+
+# Logs
+*.log
+
+# Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Type checkers
+.mypy_cache/
+.pyre/
+.ruff_cache/
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+
+# Django collected static files
+backend/staticfiles/
+
+# Django media (opcional)
+backend/media/
+
+# ==========================================
+# Node / React / Vite
+# ==========================================
+
+frontend/node_modules/
+
+# Vite build output
+frontend/dist/
+
+# Cache
+frontend/.vite/
+frontend/.cache/
+
+# Logs
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+
+# Environment variables
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# ==========================================
+# Testing
+# ==========================================
+
+coverage/
+coverage.xml
+
+# ==========================================
+# OS files
+# ==========================================
+
+Desktop.ini
