@@ -266,7 +266,7 @@ export function PortfolioPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis dataKey="volatility" name="Volatilidad" tickFormatter={v => `${(v * 100).toFixed(1)}%`} tick={{ fontSize: 11 }} label={{ value: 'Volatilidad', position: 'insideBottom', offset: -4, fontSize: 11 }} />
                     <YAxis dataKey="expected_return" name="Retorno" tickFormatter={v => `${(v * 100).toFixed(1)}%`} tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(v: number, name: string) => [`${(v * 100).toFixed(2)}%`, name]} />
+                    <Tooltip formatter={(v, name) => [`${((v as number) * 100).toFixed(2)}%`, name as string]} />
                     <Scatter data={frontierData} fill="var(--accent)" opacity={0.85} />
                   </ScatterChart>
                 </ResponsiveContainer>
@@ -292,7 +292,7 @@ export function PortfolioPage() {
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={d => d.slice(5)} interval={Math.floor(backtest.equity_curve.length / 8)} />
                     <YAxis tick={{ fontSize: 11 }} domain={['auto', 'auto']} tickFormatter={v => v.toFixed(2)} />
                     <ReferenceLine y={1} stroke="var(--border)" strokeDasharray="4 4" />
-                    <Tooltip formatter={(v: number) => [v.toFixed(4), 'Valor']} labelStyle={{ fontSize: 12 }} />
+                    <Tooltip formatter={(v) => [(v as number).toFixed(4), 'Valor']} labelStyle={{ fontSize: 12 }} />
                     <Line type="monotone" dataKey="value" stroke="var(--accent)" strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>

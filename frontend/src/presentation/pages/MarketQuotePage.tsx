@@ -197,7 +197,7 @@ export function MarketQuotePage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={d => d.slice(5)} interval={Math.floor(history.length / 8)} />
                     <YAxis tick={{ fontSize: 11 }} domain={['auto', 'auto']} />
-                    <Tooltip formatter={(v: number) => [`$${v.toFixed(2)}`, 'Close']} labelStyle={{ fontSize: 12 }} />
+                    <Tooltip formatter={(v) => [`$${(v as number).toFixed(2)}`, 'Close']} labelStyle={{ fontSize: 12 }} />
                     <Line type="monotone" dataKey="close" stroke="var(--accent)" strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>

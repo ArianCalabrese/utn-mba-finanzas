@@ -69,8 +69,8 @@ export function CapitalLineChart({
         />
         <Tooltip
           contentStyle={TOOLTIP_STYLE}
-          formatter={(v: number) => [yFormatter(v)]}
-          labelFormatter={(l) => `${xLabel}: ${xFormatter ? xFormatter(l) : l}`}
+          formatter={(v) => [yFormatter(v as number)]}
+          labelFormatter={(l) => `${xLabel}: ${xFormatter ? xFormatter(l as number) : l}`}
         />
         {lines.length > 1 && <Legend wrapperStyle={{ fontSize: 12 }} />}
         {referenceY !== undefined && (
@@ -118,7 +118,7 @@ export function StackedBarChart({
         <YAxis tick={AXIS_STYLE} tickFormatter={(v: number) => yFormatter(v)} width={80} />
         <Tooltip
           contentStyle={TOOLTIP_STYLE}
-          formatter={(v: number) => [yFormatter(v)]}
+          formatter={(v) => [yFormatter(v as number)]}
           labelFormatter={(l) => `${xLabel} ${l}`}
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />

@@ -201,7 +201,7 @@ export function BondsApiPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis dataKey="period" tick={{ fontSize: 10 }} />
                     <YAxis tick={{ fontSize: 10 }} />
-                    <Tooltip formatter={(v: number) => [`$${v.toFixed(2)}`]} />
+                    <Tooltip formatter={(v) => [`$${(v as number).toFixed(2)}`]} />
                     <Bar dataKey="cash_flow" name="Flujo de caja" fill="var(--accent)" opacity={0.7} radius={[3, 3, 0, 0]} />
                     <Bar dataKey="pv" name="Valor presente" fill="var(--positive)" opacity={0.8} radius={[3, 3, 0, 0]} />
                   </BarChart>

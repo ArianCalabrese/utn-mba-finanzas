@@ -234,7 +234,7 @@ TEA = (1,006667)^12 − 1 = 8,30%
                           ...result.schedule.slice(-25),
                         ]
                       : result.schedule
-                    ).map((row, idx, arr) => (
+                    ).map((row, idx) => (
                       <>
                         {idx === 25 && result.schedule.length > 50 && (
                           <tr key="ellipsis">

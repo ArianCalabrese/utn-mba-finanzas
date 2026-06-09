@@ -329,7 +329,7 @@ export function FundamentalPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis dataKey="year" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(v: number) => [`$${v.toLocaleString()}M`]} />
+                    <Tooltip formatter={(v) => [`$${(v as number).toLocaleString()}M`]} />
                     <Bar dataKey="fcf" name="FCF proyectado" fill="var(--accent)" opacity={0.7} radius={[4, 4, 0, 0]} />
                     <Bar dataKey="pv" name="Valor presente" fill="var(--positive)" opacity={0.8} radius={[4, 4, 0, 0]} />
                   </BarChart>
