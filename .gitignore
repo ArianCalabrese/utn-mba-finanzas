@@ -96,3 +96,5 @@ coverage.xml
 # ==========================================
 
 Desktop.ini
+.claude/
+.deploy/

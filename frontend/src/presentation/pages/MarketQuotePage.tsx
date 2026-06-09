@@ -15,10 +15,71 @@ function fmt(n: number | null | undefined, decimals = 2): string {
 function fmtLarge(n: number | null | undefined): string {
   if (n == null) return '—';
   if (Math.abs(n) >= 1e12) return `$${(n / 1e12).toFixed(2)}T`;
-  if (Math.abs(n) >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
-  if (Math.abs(n) >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
+  if (Math.abs(n) >= 1e9)  return `$${(n / 1e9).toFixed(2)}B`;
+  if (Math.abs(n) >= 1e6)  return `$${(n / 1e6).toFixed(2)}M`;
   return `$${n.toFixed(0)}`;
 }
+
+type HelpKey = 'session' | 'stats' | 'chart';
+
+const HELP: Record<HelpKey, { title: string; content: React.ReactNode }> = {
+  session: {
+    title: 'Sesión actual',
+    content: (
+      <>
+        <HelpSection title="Apertura">
+          <p>Precio al que se negoció el primer trade del día en la bolsa. Puede diferir del cierre anterior por noticias o movimientos pre-market.</p>
+        </HelpSection>
+        <HelpSection title="Mínimo y Máximo del día">
+          <p>Rango de precios en el que se ha negociado el activo durante la sesión actual. Indica la volatilidad intradía.</p>
+        </HelpSection>
+        <HelpSection title="Volumen">
+          <p>Cantidad total de acciones (o contratos) negociadas en la sesión actual. Un volumen alto suele confirmar la fuerza de un movimiento de precio.</p>
+        </HelpSection>
+        <HelpSection title="Volumen promedio">
+          <p>Media diaria de volumen de los últimos 30–90 días según el proveedor. Comparar el volumen actual con el promedio indica si hay actividad inusual.</p>
+        </HelpSection>
+      </>
+    ),
+  },
+  stats: {
+    title: 'Estadísticas del activo',
+    content: (
+      <>
+        <HelpSection title="52-Week Low / High">
+          <p>Precio mínimo y máximo registrado en los últimos 52 semanas (un año). Útil para identificar si el activo está cerca de sus extremos históricos anuales.</p>
+        </HelpSection>
+        <HelpSection title="Market Cap">
+          <HelpFormula>Market Cap = Precio × Acciones en circulación</HelpFormula>
+          <p>Valoración total de la empresa en el mercado. Permite clasificarla (Large Cap {'>'} $10B, Mid Cap $2–10B, Small Cap {'<'} $2B).</p>
+        </HelpSection>
+        <HelpSection title="Beta">
+          <HelpFormula>β = Cov(activo, mercado) / Var(mercado)</HelpFormula>
+          <p><strong>β = 1</strong>: el activo se mueve igual que el mercado (ej. S&P 500).<br />
+          <strong>β {'>'} 1</strong>: más volátil que el mercado (mayor riesgo y potencial retorno).<br />
+          <strong>β {'<'} 1</strong>: menos volátil (más estable).<br />
+          <strong>β {'<'} 0</strong>: se mueve en dirección opuesta al mercado (cobertura natural).</p>
+        </HelpSection>
+        <HelpSection title="Ejemplo">
+          <p>Una acción con β = 1.5 tiende a subir 1.5% cuando el mercado sube 1%, y a bajar 1.5% cuando el mercado cae 1%.</p>
+        </HelpSection>
+      </>
+    ),
+  },
+  chart: {
+    title: 'Precio — últimos 12 meses',
+    content: (
+      <>
+        <HelpSection title="¿Qué muestra?">
+          <p>Evolución del precio de cierre diario ajustado en los últimos 12 meses. Los precios ajustados incorporan dividendos y splits para una comparación histórica consistente.</p>
+        </HelpSection>
+        <HelpSection title="Cómo leerlo">
+          <p>Observá la tendencia general (serie de máximos y mínimos ascendentes = alcista; descendentes = bajista). Los picos y valles pronunciados suelen coincidir con eventos corporativos o macroeconómicos relevantes.</p>
+        </HelpSection>
+      </>
+    ),
+  },
+};
 
 export function MarketQuotePage() {
   const [ticker, setTicker] = useState('');
@@ -26,7 +87,7 @@ export function MarketQuotePage() {
   const [history, setHistory] = useState<{ date: string; close: number }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showHelp, setShowHelp] = useState(false);
+  const [openHelp, setOpenHelp] = useState<HelpKey | null>(null);
 
   const search = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,6 +117,8 @@ export function MarketQuotePage() {
     ? (change / quote.previous_close) * 100
     : null;
 
+  const helpInfo = openHelp ? HELP[openHelp] : null;
+
   return (
     <>
       <PageHeader
@@ -66,7 +129,6 @@ export function MarketQuotePage() {
       <div className="page-body">
         <form onSubmit={search} style={{ display: 'flex', gap: 'var(--sp-3)', marginBottom: 'var(--sp-5)' }}>
           <input
-            className="ticker-input"
             placeholder="Ej: AAPL, MSFT, SPY, BTC-USD"
             value={ticker}
             onChange={e => setTicker(e.target.value.toUpperCase())}
@@ -80,14 +142,17 @@ export function MarketQuotePage() {
         {error && <p style={{ color: 'var(--negative)', fontSize: 13, marginBottom: 'var(--sp-4)' }}>{error}</p>}
 
         {quote && (
-          <>
-            <Card style={{ marginBottom: 'var(--sp-5)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-5)' }}>
+            {/* ── Price header ── */}
+            <Card>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--sp-3)' }}>
                 <div>
                   <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--mono)' }}>
                     {quote.ticker}
                   </div>
-                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{quote.name ?? ''} · {quote.exchange} · {quote.currency}</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                    {quote.name ?? ''} · {quote.exchange} · {quote.currency}
+                  </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 32, fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--text-primary)' }}>
@@ -102,20 +167,31 @@ export function MarketQuotePage() {
               </div>
             </Card>
 
-            <div className="metrics-grid" style={{ marginBottom: 'var(--sp-5)' }}>
-              <Metric label="Apertura" value={fmt(quote.open)} />
-              <Metric label="Mín. día" value={fmt(quote.day_low)} />
-              <Metric label="Máx. día" value={fmt(quote.day_high)} />
-              <Metric label="52w Low" value={fmt(quote.week_52_low)} />
-              <Metric label="52w High" value={fmt(quote.week_52_high)} />
-              <Metric label="Market Cap" value={fmtLarge(quote.market_cap)} />
-              <Metric label="Volumen" value={quote.volume ? quote.volume.toLocaleString() : '—'} />
-              <Metric label="Vol. promedio" value={quote.avg_volume ? quote.avg_volume.toLocaleString() : '—'} />
-              <Metric label="Beta" value={fmt(quote.beta)} />
-            </div>
+            {/* ── Session metrics ── */}
+            <Card title="Sesión actual" onHelp={() => setOpenHelp('session')}>
+              <div className="metrics-grid">
+                <Metric label="Apertura"    value={fmt(quote.open)} />
+                <Metric label="Mín. día"    value={fmt(quote.day_low)} />
+                <Metric label="Máx. día"    value={fmt(quote.day_high)} />
+                <Metric label="Volumen"     value={quote.volume ? quote.volume.toLocaleString() : '—'} />
+                <Metric label="Vol. promedio" value={quote.avg_volume ? quote.avg_volume.toLocaleString() : '—'} />
+              </div>
+            </Card>
 
+            {/* ── Asset stats ── */}
+            <Card title="Estadísticas del activo" onHelp={() => setOpenHelp('stats')}>
+              <div className="metrics-grid">
+                <Metric label="52w Low"    value={fmt(quote.week_52_low)} />
+                <Metric label="52w High"   value={fmt(quote.week_52_high)} />
+                <Metric label="Market Cap" value={fmtLarge(quote.market_cap)} />
+                <Metric label="Beta"       value={fmt(quote.beta)}
+                  variant={quote.beta != null ? (quote.beta > 1.2 ? 'negative' : quote.beta < 0.8 ? 'positive' : 'default') : 'default'} />
+              </div>
+            </Card>
+
+            {/* ── Price chart ── */}
             {history.length > 0 && (
-              <Card title="Precio — últimos 12 meses">
+              <Card title="Precio — últimos 12 meses" onHelp={() => setOpenHelp('chart')}>
                 <ResponsiveContainer width="100%" height={260}>
                   <LineChart data={history}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -127,9 +203,15 @@ export function MarketQuotePage() {
                 </ResponsiveContainer>
               </Card>
             )}
-          </>
+          </div>
         )}
       </div>
+
+      {helpInfo && (
+        <HelpModal title={helpInfo.title} onClose={() => setOpenHelp(null)}>
+          {helpInfo.content}
+        </HelpModal>
+      )}
     </>
   );
 }
