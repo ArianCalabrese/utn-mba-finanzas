@@ -24,19 +24,22 @@ def optimize_portfolio(tickers: list[str], risk_free_rate: float = 0.05) -> dict
 
     def fetch():
         returns = _daily_returns(tickers)
-        n = len(returns.columns)
-        ann_returns = returns.mean() * 252
-        ann_cov = returns.cov() * 252
+        tickers_list = list(returns.columns)
+        n = len(tickers_list)
 
-        def stats(w):
-            ret = float(np.dot(w, ann_returns))
-            vol = float(np.sqrt(w @ ann_cov.values @ w))
+        # Convert to plain numpy to avoid pandas 3.x / numpy interaction quirks
+        ann_ret: np.ndarray = returns.mean().to_numpy() * 252
+        ann_cov: np.ndarray = returns.cov().to_numpy() * 252
+
+        def stats(w: np.ndarray) -> tuple[float, float, float]:
+            ret = float(w @ ann_ret)
+            vol = float(np.sqrt(w @ ann_cov @ w))
             sharpe = (ret - risk_free_rate) / vol if vol > 0 else 0.0
             return ret, vol, sharpe
 
-        constraints = [{'type': 'eq', 'fun': lambda w: np.sum(w) - 1}]
+        constraints = [{'type': 'eq', 'fun': lambda w: np.sum(w) - 1.0}]
         bounds = [(0.0, 1.0)] * n
-        w0 = np.full(n, 1 / n)
+        w0 = np.full(n, 1.0 / n)
 
         res_sharpe = minimize(
             lambda w: -stats(w)[2], w0,
@@ -47,20 +50,19 @@ def optimize_portfolio(tickers: list[str], risk_free_rate: float = 0.05) -> dict
             method='SLSQP', bounds=bounds, constraints=constraints,
         )
 
-        def _portfolio_dict(weights):
+        def _portfolio_dict(weights: np.ndarray) -> dict:
             ret, vol, sharpe = stats(weights)
             return {
-                'weights': {t: round(float(w), 4) for t, w in zip(returns.columns, weights)},
+                'weights': {t: round(float(w), 4) for t, w in zip(tickers_list, weights)},
                 'expected_annual_return': round(ret, 4),
                 'annual_volatility': round(vol, 4),
                 'sharpe_ratio': round(sharpe, 4),
             }
 
-        # Efficient frontier: 25 evenly spaced target returns
-        target_rets = np.linspace(float(ann_returns.min()), float(ann_returns.max()), 25)
+        target_rets = np.linspace(float(ann_ret.min()), float(ann_ret.max()), 25)
         frontier = []
         for target in target_rets:
-            cons = constraints + [{'type': 'eq', 'fun': lambda w, t=target: np.dot(w, ann_returns) - t}]
+            cons = constraints + [{'type': 'eq', 'fun': lambda w, t=target: w @ ann_ret - t}]
             res = minimize(lambda w: stats(w)[1], w0, method='SLSQP', bounds=bounds, constraints=cons)
             if res.success:
                 frontier.append({
@@ -69,7 +71,7 @@ def optimize_portfolio(tickers: list[str], risk_free_rate: float = 0.05) -> dict
                 })
 
         return {
-            'tickers': list(returns.columns),
+            'tickers': tickers_list,
             'risk_free_rate': risk_free_rate,
             'max_sharpe': _portfolio_dict(res_sharpe.x),
             'min_variance': _portfolio_dict(res_minvar.x),
@@ -123,8 +125,12 @@ def compute_correlation(tickers: list[str], benchmark: str = 'SPY') -> dict:
         bench_var = float(returns[bench].var())
         for t in [t.upper() for t in tickers]:
             if t in returns.columns and bench_var:
-                cov = float(returns[[t, bench]].cov().loc[t, bench])
-                beta[t] = round(cov / bench_var, 4)
+                if t == bench:
+                    beta[t] = 1.0
+                else:
+                    # Use Series.cov(Series) to guarantee a scalar result
+                    cov = float(returns[t].cov(returns[bench]))
+                    beta[t] = round(cov / bench_var, 4)
 
     return {
         'correlation_matrix': corr.to_dict(),

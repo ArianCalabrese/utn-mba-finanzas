@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, SelectHTMLAttributes } from "react";
+import type { InputHTMLAttributes, SelectHTMLAttributes, CSSProperties } from "react";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 import { HelpButton } from "./HelpModal";
 import "./ui.css";
@@ -60,12 +60,19 @@ interface CardProps {
   title?: string;
   children: React.ReactNode;
   className?: string;
+  style?: CSSProperties;
+  onHelp?: () => void;
 }
 
-export function Card({ title, children, className = "" }: CardProps) {
+export function Card({ title, children, className = "", style, onHelp }: CardProps) {
   return (
-    <div className={`card ${className}`}>
-      {title && <div className="card-title">{title}</div>}
+    <div className={`card ${className}`} style={style}>
+      {title && (
+        <div className="card-title" style={onHelp ? { justifyContent: 'space-between' } : undefined}>
+          <span>{title}</span>
+          {onHelp && <HelpButton onClick={onHelp} />}
+        </div>
+      )}
       {children}
     </div>
   );

@@ -2,10 +2,78 @@ import { useState } from 'react';
 import { Wallet } from 'lucide-react';
 import { getBondPrice, getBondYtm, getBondDuration, type BondPriceResult, type BondYtmResult, type BondDurationResult } from '@/application/api/bonds';
 import { PageHeader, Card, Metric } from '@/presentation/components/ui';
+import { HelpModal, HelpSection, HelpFormula } from '@/presentation/components/HelpModal';
 import { ApiError } from '@/application/api/client';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 type Mode = 'price' | 'ytm' | 'duration';
+type HelpKey = 'price' | 'ytm' | 'duration';
+
+const HELP: Record<HelpKey, { title: string; content: React.ReactNode }> = {
+  price: {
+    title: 'Precio del Bono',
+    content: (
+      <>
+        <HelpSection title="¿Cómo se calcula?">
+          <HelpFormula>
+            Precio = Σ [C / (1 + YTM/f)^t] + VN / (1 + YTM/f)^n
+          </HelpFormula>
+          <p>Donde C = cupón por período, VN = valor nominal, f = frecuencia, n = total períodos.</p>
+        </HelpSection>
+        <HelpSection title="Relación precio/YTM">
+          <p>Cuando el YTM <strong>sube</strong>, el precio del bono <strong>baja</strong> (relación inversa).<br />
+          Si YTM = tasa cupón → precio = valor nominal (par).<br />
+          Si YTM {'>'} tasa cupón → precio {'<'} par (descuento).<br />
+          Si YTM {'<'} tasa cupón → precio {'>'} par (prima).</p>
+        </HelpSection>
+        <HelpSection title="Ejemplo">
+          <p>Bono de $1.000, cupón 6% semestral, 10 períodos, YTM 7%:<br />
+          Cupón = $30 cada 6 meses. Precio ≈ $929.</p>
+        </HelpSection>
+      </>
+    ),
+  },
+  ytm: {
+    title: 'YTM — Yield to Maturity',
+    content: (
+      <>
+        <HelpSection title="¿Qué es?">
+          <p>La <strong>tasa interna de retorno</strong> del bono: la tasa de descuento que iguala el precio de mercado con el valor presente de todos los flujos futuros.</p>
+        </HelpSection>
+        <HelpSection title="¿Cómo se calcula?">
+          <p>Se resuelve numéricamente (método de Brentq/bisección) ya que no tiene solución analítica cerrada:</p>
+          <HelpFormula>Precio = Σ [C / (1+y)^t] + VN/(1+y)^n → despejar y</HelpFormula>
+        </HelpSection>
+        <HelpSection title="Interpretación">
+          <p>El YTM es el retorno anualizado que obtendría un inversor si compra el bono al precio de mercado y lo mantiene hasta el vencimiento, reinvirtiendo los cupones a la misma tasa.</p>
+        </HelpSection>
+      </>
+    ),
+  },
+  duration: {
+    title: 'Duración, Duración Modificada y Convexidad',
+    content: (
+      <>
+        <HelpSection title="Duración de Macaulay">
+          <HelpFormula>D = Σ [t × PV(Flujo_t)] / Precio</HelpFormula>
+          <p>Tiempo promedio ponderado para recibir los flujos de caja, en años. Un bono cero cupón tiene duración = vencimiento.</p>
+        </HelpSection>
+        <HelpSection title="Duración Modificada">
+          <HelpFormula>DM = D_Macaulay / (1 + YTM/f)</HelpFormula>
+          <p>Sensibilidad del precio del bono ante cambios en la tasa de interés.<br />
+          Si DM = 5 y el YTM sube 1%, el precio cae ≈ 5%.</p>
+        </HelpSection>
+        <HelpSection title="Convexidad">
+          <p>Corrección de segundo orden. Cuanta más convexidad, menor la caída real del precio ante subas de tasas (y mayor la suba ante bajas). Un bono con alta convexidad es más valioso.</p>
+        </HelpSection>
+        <HelpSection title="DV01">
+          <HelpFormula>DV01 = DM × Precio × 0.0001</HelpFormula>
+          <p>Cambio en el precio del bono ante un movimiento de 1 punto base (0.01%) en el YTM. Útil para gestión de riesgo de cartera de renta fija.</p>
+        </HelpSection>
+      </>
+    ),
+  },
+};
 
 function fmt(n: number | null | undefined, dec = 4): string {
   return n == null ? '—' : n.toFixed(dec);
@@ -22,6 +90,7 @@ export function BondsApiPage() {
   const [mode, setMode] = useState<Mode>('price');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [openHelp, setOpenHelp] = useState<HelpKey | null>(null);
 
   const [form, setForm] = useState({
     face: '1000',
@@ -116,13 +185,15 @@ export function BondsApiPage() {
 
         {mode === 'price' && priceResult && (
           <>
-            <div className="metrics-grid" style={{ marginBottom: 'var(--sp-5)' }}>
-              <Metric label="Precio" value={`$${fmt(priceResult.price)}`} variant="accent" />
-              <Metric label="Prima / Descuento" value={`$${fmt(priceResult.face_value - priceResult.price)}`}
-                variant={priceResult.price >= priceResult.face_value ? 'positive' : 'negative'} />
-              <Metric label="Pago de cupón" value={`$${fmt(priceResult.coupon_payment)}`} />
-              <Metric label="YTM" value={`${(priceResult.ytm * 100).toFixed(3)}%`} />
-            </div>
+            <Card title="Resultado" style={{ marginBottom: 'var(--sp-5)' }} onHelp={() => setOpenHelp('price')}>
+              <div className="metrics-grid">
+                <Metric label="Precio" value={`$${fmt(priceResult.price)}`} variant="accent" />
+                <Metric label="Prima / Descuento" value={`$${fmt(priceResult.face_value - priceResult.price)}`}
+                  variant={priceResult.price >= priceResult.face_value ? 'positive' : 'negative'} />
+                <Metric label="Pago de cupón" value={`$${fmt(priceResult.coupon_payment)}`} />
+                <Metric label="YTM" value={`${(priceResult.ytm * 100).toFixed(3)}%`} />
+              </div>
+            </Card>
             {cfData.length > 0 && cfData.length <= 30 && (
               <Card title="Flujos de caja y valor presente">
                 <ResponsiveContainer width="100%" height={220}>
@@ -141,22 +212,32 @@ export function BondsApiPage() {
         )}
 
         {mode === 'ytm' && ytmResult && (
-          <div className="metrics-grid">
-            <Metric label="YTM Anual" value={`${(ytmResult.ytm_annual * 100).toFixed(4)}%`} variant="accent" />
-            <Metric label="YTM Periódico" value={`${(ytmResult.ytm_periodic * 100).toFixed(4)}%`} />
-            <Metric label="Precio de mercado" value={`$${fmt(ytmResult.market_price)}`} />
-            <Metric label="Valor nominal" value={`$${fmt(ytmResult.face)}`} />
-          </div>
+          <Card title="Resultado" onHelp={() => setOpenHelp('ytm')}>
+            <div className="metrics-grid">
+              <Metric label="YTM Anual" value={`${(ytmResult.ytm_annual * 100).toFixed(4)}%`} variant="accent" />
+              <Metric label="YTM Periódico" value={`${(ytmResult.ytm_periodic * 100).toFixed(4)}%`} />
+              <Metric label="Precio de mercado" value={`$${fmt(ytmResult.market_price)}`} />
+              <Metric label="Valor nominal" value={`$${fmt(ytmResult.face)}`} />
+            </div>
+          </Card>
         )}
 
         {mode === 'duration' && durationResult && (
-          <div className="metrics-grid">
-            <Metric label="Precio" value={`$${fmt(durationResult.price)}`} />
-            <Metric label="Dur. Macaulay" value={`${fmt(durationResult.macaulay_duration)} años`} variant="accent" />
-            <Metric label="Dur. Modificada" value={fmt(durationResult.modified_duration)} />
-            <Metric label="Convexidad" value={fmt(durationResult.convexity)} />
-            <Metric label="DV01" value={`$${fmt(durationResult.dv01)}`} sub="Cambio precio por +1bp de YTM" />
-          </div>
+          <Card title="Resultado" onHelp={() => setOpenHelp('duration')}>
+            <div className="metrics-grid">
+              <Metric label="Precio" value={`$${fmt(durationResult.price)}`} />
+              <Metric label="Dur. Macaulay" value={`${fmt(durationResult.macaulay_duration)} años`} variant="accent" />
+              <Metric label="Dur. Modificada" value={fmt(durationResult.modified_duration)} />
+              <Metric label="Convexidad" value={fmt(durationResult.convexity)} />
+              <Metric label="DV01" value={`$${fmt(durationResult.dv01)}`} sub="Cambio precio por +1bp de YTM" />
+            </div>
+          </Card>
+        )}
+
+        {openHelp && HELP[openHelp] && (
+          <HelpModal title={HELP[openHelp].title} onClose={() => setOpenHelp(null)}>
+            {HELP[openHelp].content}
+          </HelpModal>
         )}
       </div>
     </>

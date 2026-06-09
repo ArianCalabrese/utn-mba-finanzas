@@ -3,6 +3,7 @@ import { Search } from 'lucide-react';
 import { getQuote, type Quote } from '@/application/api/market';
 import { getHistory } from '@/application/api/market';
 import { PageHeader, Card, Metric } from '@/presentation/components/ui';
+import { HelpModal, HelpSection, HelpFormula } from '@/presentation/components/HelpModal';
 import { ApiError } from '@/application/api/client';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
@@ -25,6 +26,7 @@ export function MarketQuotePage() {
   const [history, setHistory] = useState<{ date: string; close: number }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
 
   const search = async (e: React.FormEvent) => {
     e.preventDefault();

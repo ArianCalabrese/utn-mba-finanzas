@@ -8,6 +8,7 @@ import {
   type BacktestResult,
 } from '@/application/api/portfolio';
 import { PageHeader, Card, Metric } from '@/presentation/components/ui';
+import { HelpModal, HelpSection, HelpFormula } from '@/presentation/components/HelpModal';
 import { ApiError } from '@/application/api/client';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -15,6 +16,106 @@ import {
 } from 'recharts';
 
 type Tab = 'optimize' | 'backtest' | 'correlation';
+type HelpKey = 'sharpe' | 'minvar' | 'frontier' | 'backtest' | 'var' | 'correlation';
+
+const HELP: Record<HelpKey, { title: string; content: React.ReactNode }> = {
+  sharpe: {
+    title: 'Portafolio de Máximo Sharpe Ratio',
+    content: (
+      <>
+        <HelpSection title="¿Qué es el Sharpe Ratio?">
+          <HelpFormula>Sharpe = (Retorno esperado − Tasa libre de riesgo) / Volatilidad</HelpFormula>
+          <p>Mide el retorno por unidad de riesgo. A mayor Sharpe, mejor relación riesgo/retorno. {'> 1'} se considera bueno.</p>
+        </HelpSection>
+        <HelpSection title="Optimización">
+          <p>Se busca la combinación de pesos que <strong>maximiza el Sharpe ratio</strong>, usando el algoritmo SLSQP. No puede haber posiciones cortas (todos los pesos ≥ 0).</p>
+        </HelpSection>
+      </>
+    ),
+  },
+  minvar: {
+    title: 'Portafolio de Mínima Varianza',
+    content: (
+      <>
+        <HelpSection title="¿Qué es?">
+          <p>La combinación de pesos que <strong>minimiza la volatilidad</strong> del portafolio, sin importar el retorno esperado. Es el punto más a la izquierda de la frontera eficiente.</p>
+        </HelpSection>
+        <HelpSection title="¿Cuándo usarlo?">
+          <p>Ideal para inversores conservadores que priorizan la estabilidad por encima del retorno. Muy útil en mercados volátiles o como portafolio defensivo.</p>
+        </HelpSection>
+      </>
+    ),
+  },
+  frontier: {
+    title: 'Frontera Eficiente de Markowitz',
+    content: (
+      <>
+        <HelpSection title="¿Qué es?">
+          <p>Conjunto de portafolios que ofrecen el <strong>máximo retorno para cada nivel de riesgo</strong> dado (o mínimo riesgo para cada nivel de retorno). Propuesto por Harry Markowitz en 1952.</p>
+        </HelpSection>
+        <HelpSection title="¿Cómo se construye?">
+          <p>Se resuelven 25 optimizaciones, cada una fijando un retorno objetivo diferente entre el mínimo y máximo posible, y minimizando la volatilidad para ese retorno.</p>
+        </HelpSection>
+        <HelpSection title="Diversificación">
+          <p>La clave de Markowitz es que activos correlacionados negativamente reducen el riesgo total. El portafolio óptimo no es simplemente el activo con mayor retorno.</p>
+        </HelpSection>
+      </>
+    ),
+  },
+  backtest: {
+    title: 'Backtest Histórico del Portafolio',
+    content: (
+      <>
+        <HelpSection title="¿Qué hace?">
+          <p>Simula cómo hubiera rendido el portafolio con los pesos del Máximo Sharpe en el período histórico seleccionado, recalculando los pesos diariamente.</p>
+        </HelpSection>
+        <HelpSection title="Métricas">
+          <p><strong>Max Drawdown</strong>: caída máxima desde un pico. Ej: -20% significa que en algún momento el portafolio cayó 20% desde su máximo histórico.<br />
+          <strong>Sharpe anualizado</strong>: retorno ajustado por riesgo en el período.<br />
+          <strong>Curva de capital</strong>: evolución del valor del portafolio normalizado a 1.0.</p>
+        </HelpSection>
+        <HelpSection title="Advertencia">
+          <p>El backtest no garantiza resultados futuros. Los pesos óptimos históricos pueden no ser óptimos en el futuro.</p>
+        </HelpSection>
+      </>
+    ),
+  },
+  var: {
+    title: 'VaR — Value at Risk',
+    content: (
+      <>
+        <HelpSection title="¿Qué mide?">
+          <p>Pérdida máxima esperada del portafolio en un día, con un nivel de confianza dado.</p>
+        </HelpSection>
+        <HelpSection title="Interpretación">
+          <p><strong>VaR 95%</strong>: en el 95% de los días, la pérdida no superará este valor.<br />
+          <strong>VaR 99%</strong>: en el 99% de los días, la pérdida no superará este valor.<br />
+          <strong>Histórico</strong>: usa los retornos pasados reales.<br />
+          <strong>Paramétrico</strong>: asume distribución normal.</p>
+        </HelpSection>
+      </>
+    ),
+  },
+  correlation: {
+    title: 'Matriz de Correlación y Beta',
+    content: (
+      <>
+        <HelpSection title="Correlación">
+          <HelpFormula>ρ(A,B) = Cov(A,B) / (σ_A × σ_B) ∈ [−1, 1]</HelpFormula>
+          <p><strong>+1</strong>: se mueven exactamente igual.<br />
+          <strong>0</strong>: sin relación lineal.<br />
+          <strong>−1</strong>: se mueven exactamente opuesto (máxima diversificación).</p>
+        </HelpSection>
+        <HelpSection title="Beta vs benchmark">
+          <HelpFormula>β = Cov(activo, benchmark) / Var(benchmark)</HelpFormula>
+          <p><strong>β {'>'} 1</strong>: el activo se mueve más que el mercado (más riesgo).<br />
+          <strong>β {'<'} 1</strong>: el activo se mueve menos (más estable).<br />
+          <strong>β {'<'} 0</strong>: el activo se mueve en dirección opuesta al mercado.</p>
+        </HelpSection>
+      </>
+    ),
+  },
+};
 
 function fmt(n: number | null | undefined, dec = 2): string {
   return n == null ? '—' : n.toFixed(dec);
@@ -27,6 +128,7 @@ export function PortfolioPage() {
   const [activeTab, setActiveTab] = useState<Tab>('optimize');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [openHelp, setOpenHelp] = useState<HelpKey | null>(null);
 
   const [optimized, setOptimized] = useState<OptimizeResult | null>(null);
   const [backtest, setBacktest] = useState<BacktestResult | null>(null);
@@ -114,8 +216,8 @@ export function PortfolioPage() {
 
         {activeTab === 'optimize' && optimized && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-4)', marginBottom: 'var(--sp-4)' }}>
-              <Card title="Máximo Sharpe Ratio">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 'var(--sp-4)', marginBottom: 'var(--sp-4)' }}>
+              <Card title="Máximo Sharpe Ratio" onHelp={() => setOpenHelp('sharpe')}>
                 <div className="metrics-grid" style={{ marginBottom: 'var(--sp-4)' }}>
                   <Metric label="Retorno esperado" value={`${(optimized.max_sharpe.expected_annual_return * 100).toFixed(2)}%`} variant="positive" />
                   <Metric label="Volatilidad" value={`${(optimized.max_sharpe.annual_volatility * 100).toFixed(2)}%`} />
@@ -135,7 +237,7 @@ export function PortfolioPage() {
                   ))}
                 </div>
               </Card>
-              <Card title="Mínima Varianza">
+              <Card title="Mínima Varianza" onHelp={() => setOpenHelp('minvar')}>
                 <div className="metrics-grid" style={{ marginBottom: 'var(--sp-4)' }}>
                   <Metric label="Retorno esperado" value={`${(optimized.min_variance.expected_annual_return * 100).toFixed(2)}%`} />
                   <Metric label="Volatilidad" value={`${(optimized.min_variance.annual_volatility * 100).toFixed(2)}%`} variant="positive" />
@@ -158,7 +260,7 @@ export function PortfolioPage() {
             </div>
 
             {frontierData.length > 0 && (
-              <Card title="Frontera eficiente">
+              <Card title="Frontera eficiente" onHelp={() => setOpenHelp('frontier')}>
                 <ResponsiveContainer width="100%" height={240}>
                   <ScatterChart margin={{ top: 10, right: 30, bottom: 10, left: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -183,7 +285,7 @@ export function PortfolioPage() {
               <Metric label="Sharpe ratio" value={fmt(backtest.sharpe_ratio)} variant="accent" />
             </div>
             {backtest.equity_curve.length > 0 && (
-              <Card title="Curva de capital normalizada (base 1.0)">
+              <Card title="Curva de capital normalizada (base 1.0)" onHelp={() => setOpenHelp('backtest')}>
                 <ResponsiveContainer width="100%" height={260}>
                   <LineChart data={backtest.equity_curve}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -200,7 +302,7 @@ export function PortfolioPage() {
         )}
 
         {activeTab === 'correlation' && correlation && (
-          <Card title="Matriz de correlación">
+          <Card title="Matriz de correlación" onHelp={() => setOpenHelp('correlation')}>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ borderCollapse: 'collapse', fontSize: 13, fontFamily: 'var(--mono)' }}>
                 <thead>
@@ -240,6 +342,12 @@ export function PortfolioPage() {
           </Card>
         )}
       </div>
+
+      {openHelp && HELP[openHelp] && (
+        <HelpModal title={HELP[openHelp].title} onClose={() => setOpenHelp(null)}>
+          {HELP[openHelp].content}
+        </HelpModal>
+      )}
     </>
   );
 }
