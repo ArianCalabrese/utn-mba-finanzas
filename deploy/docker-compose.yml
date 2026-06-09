@@ -1,0 +1,28 @@
+services:
+  fincalc_api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    container_name: fincalc_api
+    env_file: ../backend/.env
+    volumes:
+      - ../backend/db.sqlite3:/app/db.sqlite3
+    networks:
+      - abastolink_network
+    restart: unless-stopped
+
+  fincalc_frontend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.frontend
+      args:
+        VITE_API_URL: https://fincalc.abastolink.cloud/api
+    container_name: fincalc_frontend
+    networks:
+      - abastolink_network
+    restart: unless-stopped
+
+networks:
+  abastolink_network:
+    external: true
+    name: abastolink_abastolink_network

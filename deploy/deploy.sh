@@ -1,79 +1,62 @@
 #!/bin/bash
 # =============================================================================
 # deploy.sh — Despliega fincalc.abastolink.cloud en la VPS
-# Ejecutar como root: bash deploy.sh
+# Ejecutar como root desde /var/www/fincalc: bash deploy/deploy.sh
+# Requiere que abastolink_nginx esté corriendo con conf.d en
+# /var/www/abastolink/nginx/conf.d/
 # =============================================================================
 set -e
 
-# ---------- Configuración ---------------------------------------------------
 DOMAIN="fincalc.abastolink.cloud"
 REPO="https://github.com/ArianCalabrese/utn-mba-finanzas"
 APP_DIR="/var/www/fincalc"
 SERVICE_NAME="fincalc"
-SOCK_FILE="$APP_DIR/fincalc.sock"
-PYTHON="python3"
+NGINX_CONF_DIR="/var/www/abastolink/nginx/conf.d"
+NGINX_CONTAINER="abastolink_nginx"
 
-# ---------- Colores para output ---------------------------------------------
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 info()    { echo -e "${GREEN}[INFO]${NC} $1"; }
 warning() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error()   { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
-# ---------- Verificaciones previas ------------------------------------------
-info "Verificando sistema..."
-[[ $EUID -ne 0 ]] && error "Este script debe ejecutarse como root."
+[[ $EUID -ne 0 ]] && error "Ejecutar como root."
 
-# Verificar que el DNS ya apunta a esta IP antes de pedir el certificado
+# ---------- Verificar DNS ---------------------------------------------------
 SERVER_IP=$(curl -s ifconfig.me)
 DNS_IP=$(dig +short "$DOMAIN" | tail -1)
 if [[ "$DNS_IP" != "$SERVER_IP" ]]; then
-    warning "El DNS de $DOMAIN ($DNS_IP) todavía no apunta a esta IP ($SERVER_IP)."
-    warning "Certbot fallará. Asegúrate de haber creado el registro A en Hostinger antes de continuar."
+    warning "DNS de $DOMAIN apunta a $DNS_IP, esta VPS es $SERVER_IP."
+    warning "Certbot fallará si el DNS no propagó."
     read -p "¿Continuar de todas formas? (s/N): " RESP
     [[ "$RESP" != "s" && "$RESP" != "S" ]] && exit 1
 fi
 
-# ---------- Instalar dependencias del sistema --------------------------------
-info "Instalando dependencias del sistema..."
-apt-get update -q
-apt-get install -y -q \
-    python3 python3-venv python3-pip \
-    nginx certbot python3-certbot-nginx \
-    git curl dnsutils
-
-# Node.js — instalar si no existe
-if ! command -v node &>/dev/null; then
-    info "Instalando Node.js 20 LTS..."
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    apt-get install -y -q nodejs
-fi
-info "Node $(node -v) | npm $(npm -v)"
+# ---------- Verificar dependencias ------------------------------------------
+command -v docker &>/dev/null || error "Docker no está instalado."
+docker compose version &>/dev/null || error "Docker Compose no está disponible."
+docker inspect "$NGINX_CONTAINER" &>/dev/null || error "El contenedor $NGINX_CONTAINER no está corriendo."
 
 # ---------- Clonar / actualizar repositorio ---------------------------------
-info "Configurando repositorio en $APP_DIR..."
+info "Actualizando repositorio..."
 if [[ -d "$APP_DIR/.git" ]]; then
-    info "Repositorio ya existe — haciendo git pull..."
     git -C "$APP_DIR" pull
 else
     git clone "$REPO" "$APP_DIR"
 fi
 
-# ---------- Backend: virtualenv + dependencias ------------------------------
-info "Configurando backend Django..."
-BACKEND_DIR="$APP_DIR/backend"
-VENV_DIR="$BACKEND_DIR/venv"
-
-if [[ ! -d "$VENV_DIR" ]]; then
-    $PYTHON -m venv "$VENV_DIR"
+# ---------- Limpiar servicio systemd anterior (si existía) ------------------
+if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
+    info "Deteniendo servicio systemd previo..."
+    systemctl stop "$SERVICE_NAME"
+    systemctl disable "$SERVICE_NAME"
+    rm -f "/etc/systemd/system/$SERVICE_NAME.service"
+    systemctl daemon-reload
 fi
-"$VENV_DIR/bin/pip" install --quiet --upgrade pip
-"$VENV_DIR/bin/pip" install --quiet -r "$BACKEND_DIR/requirements.txt"
-"$VENV_DIR/bin/pip" install --quiet gunicorn
 
 # ---------- Archivo .env del backend ----------------------------------------
-ENV_FILE="$BACKEND_DIR/.env"
+ENV_FILE="$APP_DIR/backend/.env"
 if [[ ! -f "$ENV_FILE" ]]; then
-    info "Creando archivo .env del backend..."
+    info "Creando .env..."
     SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(50))")
     cat > "$ENV_FILE" <<EOF
 SECRET_KEY=$SECRET_KEY
@@ -81,118 +64,139 @@ DEBUG=False
 ALLOWED_HOSTS=$DOMAIN,www.$DOMAIN,localhost
 CORS_ALLOWED_ORIGINS=https://$DOMAIN,https://www.$DOMAIN
 EOF
-    info ".env creado en $ENV_FILE"
 else
     info ".env ya existe — no se sobreescribe."
 fi
 
-# ---------- Migraciones y static files --------------------------------------
-info "Ejecutando migraciones..."
-cd "$BACKEND_DIR"
-"$VENV_DIR/bin/python" manage.py migrate --noinput
+# Asegurar que db.sqlite3 exista para el bind mount
+touch "$APP_DIR/backend/db.sqlite3"
 
-info "Recolectando archivos estáticos..."
-"$VENV_DIR/bin/python" manage.py collectstatic --noinput
-
-# ---------- Frontend: build con Vite ----------------------------------------
-info "Construyendo frontend..."
-FRONTEND_DIR="$APP_DIR/frontend"
-cd "$FRONTEND_DIR"
-npm install --silent
-VITE_API_URL="https://$DOMAIN/api" npm run build
-info "Frontend compilado en $FRONTEND_DIR/dist"
-
-# ---------- Permisos --------------------------------------------------------
-# www-data necesita escribir el socket, la DB SQLite y su WAL journal
-info "Ajustando permisos..."
-chown -R www-data:www-data "$APP_DIR"
-chmod -R 755 "$APP_DIR"
-# Backend dir: ejecutable para navegar, pero no listable desde fuera
-chmod 750 "$BACKEND_DIR"
-# SQLite necesita escritura en el archivo y en el directorio padre
-touch "$BACKEND_DIR/db.sqlite3"
-chown www-data:www-data "$BACKEND_DIR/db.sqlite3"
-chmod 664 "$BACKEND_DIR/db.sqlite3"
-
-# ---------- Systemd: servicio Gunicorn --------------------------------------
-info "Creando servicio systemd $SERVICE_NAME..."
-cat > "/etc/systemd/system/$SERVICE_NAME.service" <<EOF
-[Unit]
-Description=Gunicorn para fincalc ($DOMAIN)
-After=network.target
-
-[Service]
-User=www-data
-Group=www-data
-WorkingDirectory=$BACKEND_DIR
-EnvironmentFile=$ENV_FILE
-ExecStart=$VENV_DIR/bin/gunicorn \\
-    --workers 3 \\
-    --bind unix:$SOCK_FILE \\
-    --access-logfile /var/log/$SERVICE_NAME-access.log \\
-    --error-logfile /var/log/$SERVICE_NAME-error.log \\
-    config.wsgi:application
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl daemon-reload
-systemctl enable "$SERVICE_NAME"
-systemctl restart "$SERVICE_NAME"
-info "Servicio $SERVICE_NAME activo: $(systemctl is-active $SERVICE_NAME)"
-
-# ---------- NGINX: sitio virtual --------------------------------------------
-info "Configurando NGINX..."
-NGINX_CONF="/etc/nginx/sites-available/$SERVICE_NAME"
-cat > "$NGINX_CONF" <<EOF
+# ---------- Nginx: config HTTP temporal para validación certbot -------------
+info "Creando config HTTP temporal para certbot..."
+cat > "$NGINX_CONF_DIR/fincalc.conf" <<EOF
 server {
     listen 80;
-    server_name $DOMAIN www.$DOMAIN;
+    server_name $DOMAIN;
 
-    # Frontend SPA
-    root $FRONTEND_DIR/dist;
-    index index.html;
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
 
     location / {
-        try_files \$uri \$uri/ /index.html;
-    }
-
-    # Backend API + Admin
-    location ~ ^/(api|admin)/ {
-        proxy_pass http://unix:$SOCK_FILE;
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-
-    # Django static files (admin CSS, etc.)
-    location /static/ {
-        alias $BACKEND_DIR/staticfiles/;
-        expires 30d;
-        add_header Cache-Control "public, immutable";
+        return 200 'fincalc deploy in progress';
+        add_header Content-Type text/plain;
     }
 }
 EOF
 
-ln -sf "$NGINX_CONF" "/etc/nginx/sites-enabled/$SERVICE_NAME"
-nginx -t || error "Configuración de NGINX inválida."
-systemctl reload nginx
+docker exec "$NGINX_CONTAINER" nginx -t || error "Config de nginx inválida."
+docker exec "$NGINX_CONTAINER" nginx -s reload
+info "nginx recargado con config HTTP."
 
-# ---------- Certificado SSL con Certbot ------------------------------------
+# ---------- Obtener certificado SSL -----------------------------------------
 info "Obteniendo certificado SSL para $DOMAIN..."
-certbot --nginx \
+docker run --rm \
+    -v abastolink_certbot_conf:/etc/letsencrypt \
+    -v abastolink_certbot_www:/var/www/certbot \
+    certbot/certbot certonly \
+    --webroot \
+    --webroot-path=/var/www/certbot \
     -d "$DOMAIN" \
     --non-interactive \
     --agree-tos \
-    --register-unsafely-without-email \
-    --redirect
+    --register-unsafely-without-email
 
-systemctl reload nginx
+info "Certificado obtenido."
+
+# ---------- Nginx: config HTTPS definitiva ----------------------------------
+info "Escribiendo config HTTPS definitiva..."
+cat > "$NGINX_CONF_DIR/fincalc.conf" <<'NGINXEOF'
+server {
+    listen 80;
+    server_name DOMAIN_PLACEHOLDER;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name DOMAIN_PLACEHOLDER;
+
+    ssl_certificate /etc/letsencrypt/live/DOMAIN_PLACEHOLDER/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/DOMAIN_PLACEHOLDER/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+
+    resolver 127.0.0.11 valid=10s;
+    resolver_timeout 5s;
+
+    client_max_body_size 20M;
+
+    # Frontend SPA + static files
+    location / {
+        set $frontend http://fincalc_frontend:80;
+        proxy_pass $frontend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+    }
+
+    # Django API
+    location /api/ {
+        set $api http://fincalc_api:8000;
+        proxy_pass $api;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+    }
+
+    # Django admin
+    location /admin/ {
+        set $api http://fincalc_api:8000;
+        proxy_pass $api;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+    }
+}
+NGINXEOF
+
+# Reemplazar el placeholder con el dominio real
+sed -i "s/DOMAIN_PLACEHOLDER/$DOMAIN/g" "$NGINX_CONF_DIR/fincalc.conf"
+
+# ---------- Buildear y levantar contenedores --------------------------------
+info "Construyendo imágenes Docker..."
+docker compose -f "$APP_DIR/deploy/docker-compose.yml" build
+
+info "Levantando contenedores..."
+docker compose -f "$APP_DIR/deploy/docker-compose.yml" up -d
+
+# Esperar que los contenedores estén healthy
+sleep 5
+docker compose -f "$APP_DIR/deploy/docker-compose.yml" ps
+
+# ---------- Recargar nginx con config final ---------------------------------
+docker exec "$NGINX_CONTAINER" nginx -t || error "Config HTTPS de nginx inválida."
+docker exec "$NGINX_CONTAINER" nginx -s reload
+info "nginx recargado con config HTTPS."
 
 # ---------- Resumen ---------------------------------------------------------
 echo ""
@@ -200,11 +204,9 @@ echo -e "${GREEN}========================================================${NC}"
 echo -e "${GREEN}  Despliegue completado exitosamente!${NC}"
 echo -e "${GREEN}========================================================${NC}"
 echo ""
-echo -e "  URL:        https://$DOMAIN"
-echo -e "  App dir:    $APP_DIR"
-echo -e "  Servicio:   systemctl status $SERVICE_NAME"
-echo -e "  Logs API:   tail -f /var/log/$SERVICE_NAME-error.log"
-echo -e "  Logs NGINX: tail -f /var/log/nginx/error.log"
+echo -e "  URL:      https://$DOMAIN"
+echo -e "  Logs API: docker logs fincalc_api -f"
+echo -e "  Logs web: docker logs fincalc_frontend -f"
 echo ""
-echo -e "${YELLOW}  Para eliminar todo: bash $APP_DIR/deploy/cleanup.sh${NC}"
+echo -e "${YELLOW}  Para eliminar: bash $APP_DIR/deploy/cleanup.sh${NC}"
 echo ""

@@ -1,13 +1,14 @@
 #!/bin/bash
 # =============================================================================
-# cleanup.sh — Elimina COMPLETAMENTE el despliegue de fincalc de la VPS
-# Ejecutar como root: bash cleanup.sh
+# cleanup.sh — Elimina COMPLETAMENTE el despliegue de fincalc
 # =============================================================================
 set -e
 
 SERVICE_NAME="fincalc"
 APP_DIR="/var/www/fincalc"
 DOMAIN="fincalc.abastolink.cloud"
+NGINX_CONF_DIR="/var/www/abastolink/nginx/conf.d"
+NGINX_CONTAINER="abastolink_nginx"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 info()    { echo -e "${GREEN}[INFO]${NC} $1"; }
@@ -17,48 +18,61 @@ warning() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 
 echo ""
 echo -e "${RED}========================================================${NC}"
-echo -e "${RED}  ADVERTENCIA: Esto elimina el despliegue completo${NC}"
-echo -e "${RED}  de $DOMAIN de esta VPS.${NC}"
+echo -e "${RED}  Esto elimina el despliegue completo de $DOMAIN${NC}"
 echo -e "${RED}========================================================${NC}"
 echo ""
-read -p "¿Estás seguro? Escribe 'eliminar' para confirmar: " CONFIRM
+read -p "Escribe 'eliminar' para confirmar: " CONFIRM
 [[ "$CONFIRM" != "eliminar" ]] && echo "Cancelado." && exit 0
 
-# Detener y eliminar servicio systemd
-info "Deteniendo servicio $SERVICE_NAME..."
-systemctl stop "$SERVICE_NAME" 2>/dev/null && info "Servicio detenido." || warning "El servicio no estaba corriendo."
-systemctl disable "$SERVICE_NAME" 2>/dev/null || true
-rm -f "/etc/systemd/system/$SERVICE_NAME.service"
-systemctl daemon-reload
-info "Servicio systemd eliminado."
+# Bajar contenedores Docker
+info "Bajando contenedores Docker..."
+if [[ -f "$APP_DIR/deploy/docker-compose.yml" ]]; then
+    docker compose -f "$APP_DIR/deploy/docker-compose.yml" down --rmi all --volumes 2>/dev/null \
+        && info "Contenedores e imágenes eliminados." \
+        || warning "Error al bajar contenedores (puede que no estuvieran corriendo)."
+else
+    # Fallback por si no existe el compose
+    docker rm -f fincalc_api fincalc_frontend 2>/dev/null || true
+fi
 
-# Eliminar configuración NGINX
-info "Eliminando configuración NGINX..."
-rm -f "/etc/nginx/sites-enabled/$SERVICE_NAME"
-rm -f "/etc/nginx/sites-available/$SERVICE_NAME"
-nginx -t && systemctl reload nginx
-info "NGINX recargado."
+# Eliminar servicio systemd (si quedó del primer intento)
+if systemctl list-unit-files "$SERVICE_NAME.service" &>/dev/null 2>&1; then
+    info "Eliminando servicio systemd..."
+    systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+    systemctl disable "$SERVICE_NAME" 2>/dev/null || true
+    rm -f "/etc/systemd/system/$SERVICE_NAME.service"
+    systemctl daemon-reload
+fi
 
-# Revocar y eliminar certificado SSL
+# Eliminar config nginx
+info "Eliminando config nginx..."
+rm -f "$NGINX_CONF_DIR/fincalc.conf"
+if docker inspect "$NGINX_CONTAINER" &>/dev/null; then
+    docker exec "$NGINX_CONTAINER" nginx -t && docker exec "$NGINX_CONTAINER" nginx -s reload
+    info "nginx recargado."
+fi
+
+# Eliminar certificado SSL
 info "Eliminando certificado SSL..."
-certbot delete --cert-name "$DOMAIN" --non-interactive 2>/dev/null \
+docker run --rm \
+    -v abastolink_certbot_conf:/etc/letsencrypt \
+    certbot/certbot delete \
+    --cert-name "$DOMAIN" \
+    --non-interactive 2>/dev/null \
     && info "Certificado eliminado." \
-    || warning "No se encontró certificado para $DOMAIN (puede que ya estuviera eliminado)."
+    || warning "No se encontró certificado (puede que ya estuviera eliminado)."
 
-# Eliminar logs
+# Eliminar logs y directorio
 info "Eliminando logs..."
-rm -f "/var/log/$SERVICE_NAME-access.log"
-rm -f "/var/log/$SERVICE_NAME-error.log"
+rm -f "/var/log/$SERVICE_NAME-access.log" "/var/log/$SERVICE_NAME-error.log"
 
-# Eliminar directorio de la app
 info "Eliminando directorio $APP_DIR..."
 rm -rf "$APP_DIR"
-info "Directorio eliminado."
 
 echo ""
 echo -e "${GREEN}========================================================${NC}"
-echo -e "${GREEN}  Limpieza completada. No queda nada de fincalc.${NC}"
+echo -e "${GREEN}  Limpieza completada.${NC}"
 echo -e "${GREEN}========================================================${NC}"
 echo ""
-echo "Recuerda eliminar también el registro DNS 'fincalc' en el panel de Hostinger."
+echo "Recuerda eliminar el registro DNS 'fincalc' en Hostinger."
 echo ""
