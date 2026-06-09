@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   Home,
   TrendingUp,
@@ -9,11 +9,18 @@ import {
   Activity,
   Landmark,
   Target,
+  Search,
+  LineChart,
+  BookOpen,
+  PieChart,
+  Wallet,
+  LogOut,
   type LucideIcon,
 } from "lucide-react";
+import { useAuthStore } from "@/application/stores/authStore";
 import "./AppLayout.css";
 
-const NAV_ITEMS: { to: string; Icon: LucideIcon; label: string; end?: boolean }[] = [
+const CALC_NAV: { to: string; Icon: LucideIcon; label: string; end?: boolean }[] = [
   { to: "/", Icon: Home, label: "Inicio", end: true },
   { to: "/interes-simple", Icon: TrendingUp, label: "Interés Simple" },
   { to: "/interes-compuesto", Icon: BarChart3, label: "Interés Compuesto" },
@@ -25,11 +32,27 @@ const NAV_ITEMS: { to: string; Icon: LucideIcon; label: string; end?: boolean }[
   { to: "/van-tir", Icon: Target, label: "VAN / TIR" },
 ];
 
+const MARKET_NAV: { to: string; Icon: LucideIcon; label: string }[] = [
+  { to: "/mercado/cotizacion", Icon: Search, label: "Cotización" },
+  { to: "/mercado/tecnico", Icon: LineChart, label: "Análisis Técnico" },
+  { to: "/mercado/fundamental", Icon: BookOpen, label: "Análisis Fundamental" },
+  { to: "/mercado/portafolio", Icon: PieChart, label: "Portafolio" },
+  { to: "/mercado/bonos", Icon: Wallet, label: "Bonos" },
+];
+
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const { user, logout } = useAuthStore();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -45,22 +68,46 @@ export function AppLayout({ children }: AppLayoutProps) {
         <div className="sidebar-section">
           <div className="sidebar-section-label">Calculadoras</div>
           <nav className="sidebar-nav">
-            {NAV_ITEMS.map(({ to, Icon, label, end }) => (
+            {CALC_NAV.map(({ to, Icon, label, end }) => (
               <NavLink
                 key={to}
                 to={to}
                 end={end}
-                className={({ isActive }) =>
-                  "sidebar-link" + (isActive ? " active" : "")
-                }
+                className={({ isActive }) => "sidebar-link" + (isActive ? " active" : "")}
               >
-                <span className="sidebar-link-icon">
-                  <Icon size={15} />
-                </span>
+                <span className="sidebar-link-icon"><Icon size={15} /></span>
                 {label}
               </NavLink>
             ))}
           </nav>
+        </div>
+
+        <div className="sidebar-section">
+          <div className="sidebar-section-label">Mercado</div>
+          <nav className="sidebar-nav">
+            {MARKET_NAV.map(({ to, Icon, label }) => (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) => "sidebar-link" + (isActive ? " active" : "")}
+              >
+                <span className="sidebar-link-icon"><Icon size={15} /></span>
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+        </div>
+
+        <div className="sidebar-footer">
+          {user && (
+            <>
+              <span className="sidebar-user">{user.username}</span>
+              <button className="sidebar-logout" onClick={handleLogout} title="Cerrar sesión">
+                <LogOut size={14} />
+                Salir
+              </button>
+            </>
+          )}
         </div>
       </aside>
 

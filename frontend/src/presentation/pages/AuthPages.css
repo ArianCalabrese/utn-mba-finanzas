@@ -1,0 +1,125 @@
+.auth-shell {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-base);
+  padding: var(--sp-4);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-8);
+  box-shadow: var(--shadow-md);
+}
+
+.auth-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-6);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.auth-logo-icon {
+  width: 34px;
+  height: 34px;
+  background: var(--accent);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.auth-logo span span {
+  color: var(--accent);
+}
+
+.auth-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--sp-6);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.auth-field label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.auth-field input {
+  height: 40px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  font-family: var(--sans);
+}
+
+.auth-field input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+
+.auth-btn {
+  width: 100%;
+  height: 42px;
+  margin-top: var(--sp-2);
+  font-size: 14px;
+}
+
+.auth-error {
+  font-size: 13px;
+  color: var(--negative);
+  background: var(--negative-subtle);
+  border: 1px solid var(--negative);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-2) var(--sp-3);
+}
+
+.auth-success {
+  font-size: 13px;
+  color: var(--positive);
+  background: var(--positive-subtle);
+  border: 1px solid var(--positive);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-2) var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+
+.auth-footer {
+  margin-top: var(--sp-5);
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.auth-footer a {
+  color: var(--accent);
+  font-weight: 500;
+}
