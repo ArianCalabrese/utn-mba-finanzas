@@ -4,6 +4,7 @@ from apps.core.cache import get_cached
 
 QUOTE_TTL = 300
 HISTORY_TTL = 900
+SEARCH_TTL = 3600
 
 
 def get_quote(ticker: str) -> dict:
@@ -50,6 +51,29 @@ def get_history(ticker: str, period: str = '1y', interval: str = '1d') -> list[d
         )
 
     return get_cached('history', cache_key, HISTORY_TTL, fetch)
+
+
+def search_tickers(query: str, limit: int = 8) -> list[dict]:
+    """Autocomplete: return ticker candidates matching `query` via Yahoo Finance search."""
+    q = query.strip()
+    cache_key = f"{q.lower()}:{limit}"
+
+    def fetch():
+        results = yf.Search(q, max_results=limit).quotes
+        out = []
+        for r in results:
+            symbol = r.get('symbol')
+            if not symbol:
+                continue
+            out.append({
+                'symbol': symbol,
+                'name': r.get('longname') or r.get('shortname') or '',
+                'exchange': r.get('exchDisp') or r.get('exchange') or '',
+                'type': r.get('typeDisp') or r.get('quoteType') or '',
+            })
+        return out
+
+    return get_cached('search', cache_key, SEARCH_TTL, fetch)
 
 
 def get_compare(tickers: list[str], period: str = '1y') -> dict:

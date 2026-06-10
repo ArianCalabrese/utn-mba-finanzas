@@ -7,6 +7,7 @@ import {
   type Portfolio, type Transaction, type PortfolioSummary, type TxnSide,
 } from '@/application/api/portfolio';
 import { PageHeader, Card, Metric } from '@/presentation/components/ui';
+import { TickerInput } from '@/presentation/components/TickerInput';
 import { ApiError } from '@/application/api/client';
 import { useToast } from '@/application/stores/toastStore';
 
@@ -292,7 +293,7 @@ export function MyPortfolioPage() {
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--sp-3)', marginBottom: 'var(--sp-3)' }}>
                         <div>
                           <label style={labelStyle}>Ticker</label>
-                          <input style={inputStyle} placeholder="AAPL" value={txn.ticker} onChange={e => setTxn({ ...txn, ticker: e.target.value.toUpperCase() })} />
+                          <TickerInput style={inputStyle} placeholder="AAPL" value={txn.ticker} onChange={v => setTxn({ ...txn, ticker: v })} />
                         </div>
                         <div>
                           <label style={labelStyle}>Tipo</label>

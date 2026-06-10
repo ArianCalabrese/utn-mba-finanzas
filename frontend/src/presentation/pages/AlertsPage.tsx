@@ -6,6 +6,7 @@ import {
   type Alert, type AlertCondition, type AlertOperator, type ConditionOperator, type AlertCheckResult,
 } from '@/application/api/alerts';
 import { PageHeader, Card } from '@/presentation/components/ui';
+import { TickerInput } from '@/presentation/components/TickerInput';
 import { ApiError } from '@/application/api/client';
 import { useToast } from '@/application/stores/toastStore';
 
@@ -297,10 +298,10 @@ export function AlertsPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-3)', marginBottom: 'var(--sp-4)' }}>
                 <div>
                   <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Ticker</label>
-                  <input
+                  <TickerInput
                     placeholder="AAPL"
                     value={formTicker}
-                    onChange={e => setFormTicker(e.target.value.toUpperCase())}
+                    onChange={setFormTicker}
                     style={{ width: '100%', height: 36, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-raised)', color: 'var(--text-primary)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
                   />
                 </div>

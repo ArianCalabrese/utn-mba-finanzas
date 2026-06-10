@@ -30,6 +30,17 @@ export interface OHLCVBar {
   volume: number;
 }
 
+export interface TickerSuggestion {
+  symbol: string;
+  name: string;
+  exchange: string;
+  type: string;
+}
+
+export function searchTickers(query: string, limit = 8): Promise<TickerSuggestion[]> {
+  return apiFetch(`/market/search/?q=${encodeURIComponent(query)}&limit=${limit}`);
+}
+
 export function getQuote(ticker: string): Promise<Quote> {
   return apiFetch(`/market/quote/${encodeURIComponent(ticker.toUpperCase())}/`);
 }

@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .services import get_quote, get_history, get_compare
+from .services import get_quote, get_history, get_compare, search_tickers
 
 VALID_PERIODS = {'1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max'}
 VALID_INTERVALS = {'1m', '2m', '5m', '15m', '30m', '60m', '1h', '1d', '1wk', '1mo'}
@@ -31,6 +31,21 @@ class HistoryView(APIView):
             if not data:
                 return Response({'error': 'No historical data found for this ticker.'}, status=status.HTTP_404_NOT_FOUND)
             return Response(data)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class SearchView(APIView):
+    def get(self, request):
+        query = request.query_params.get('q', '').strip()
+        if len(query) < 2:
+            return Response([])
+        try:
+            limit = min(int(request.query_params.get('limit', 8)), 20)
+        except ValueError:
+            limit = 8
+        try:
+            return Response(search_tickers(query, limit))
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

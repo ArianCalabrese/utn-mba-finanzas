@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Globe } from 'lucide-react';
 import { getMarketRegime, getRelativeStrength, type MarketRegimeData, type RelativeStrengthData } from '@/application/api/macro';
 import { PageHeader, Card, Metric } from '@/presentation/components/ui';
+import { TickerInput } from '@/presentation/components/TickerInput';
 import { ApiError } from '@/application/api/client';
 import { useToast } from '@/application/stores/toastStore';
 
@@ -231,11 +232,11 @@ export function MacroPage() {
         {/* Fuerza relativa */}
         <Card title="Fuerza Relativa vs SP500" style={{ marginBottom: 'var(--sp-5)' }}>
           <form onSubmit={checkRs} style={{ display: 'flex', gap: 'var(--sp-3)', marginBottom: 'var(--sp-4)', flexWrap: 'wrap' }}>
-            <input
+            <TickerInput
               placeholder="Ticker (ej: AAPL)"
               value={rsTicker}
-              onChange={e => setRsTicker(e.target.value.toUpperCase())}
-              style={{ flex: 1, minWidth: 120, height: 36, padding: '0 var(--sp-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-raised)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'var(--sans)', outline: 'none' }}
+              onChange={setRsTicker}
+              style={{ minWidth: 120, height: 36, padding: '0 var(--sp-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-raised)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'var(--sans)', outline: 'none' }}
             />
             <select
               value={rsPeriod}

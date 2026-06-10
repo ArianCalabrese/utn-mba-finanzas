@@ -6,6 +6,7 @@ import {
   type WatchlistMeta, type WatchlistItem,
 } from '@/application/api/watchlist';
 import { PageHeader, Card } from '@/presentation/components/ui';
+import { TickerInput } from '@/presentation/components/TickerInput';
 import { ApiError } from '@/application/api/client';
 import { useToast } from '@/application/stores/toastStore';
 
@@ -242,7 +243,7 @@ export function WatchlistPage() {
                   <div style={{ display: 'flex', gap: 'var(--sp-3)', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 'var(--sp-3)' }}>
                     <div style={{ width: 120 }}>
                       <label style={lbl}>Ticker</label>
-                      <input style={inp} placeholder="AAPL" value={newTicker} onChange={e => setNewTicker(e.target.value.toUpperCase())} />
+                      <TickerInput style={inp} placeholder="AAPL" value={newTicker} onChange={setNewTicker} />
                     </div>
                     <div style={{ flex: 1, minWidth: 180 }}>
                       <label style={lbl}>Nota (opcional)</label>

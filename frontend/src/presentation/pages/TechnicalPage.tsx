@@ -7,6 +7,7 @@ import {
 import { usePageStore } from '@/application/stores/pageStore';
 import { PageHeader, Card, Metric, Tabs } from '@/presentation/components/ui';
 import { HelpModal, HelpSection, HelpFormula } from '@/presentation/components/HelpModal';
+import { TickerInput } from '@/presentation/components/TickerInput';
 import { ApiError } from '@/application/api/client';
 import { useToast } from '@/application/stores/toastStore';
 
@@ -378,11 +379,11 @@ export function TechnicalPage() {
       />
       <div className="page-body">
         <form onSubmit={search} style={{ display: 'flex', gap: 'var(--sp-3)', marginBottom: 'var(--sp-5)' }}>
-          <input
+          <TickerInput
             placeholder="Ticker (ej: AAPL)"
             value={ticker}
-            onChange={e => setTicker(e.target.value.toUpperCase())}
-            style={{ flex: 1, height: 40, padding: '0 var(--sp-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-raised)', color: 'var(--text-primary)', fontSize: 14, fontFamily: 'var(--sans)', outline: 'none' }}
+            onChange={setTicker}
+            style={{ height: 40, padding: '0 var(--sp-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-raised)', color: 'var(--text-primary)', fontSize: 14, fontFamily: 'var(--sans)', outline: 'none' }}
           />
           <button className="btn btn-primary" type="submit" disabled={loading}>
             {loading ? 'Calculando…' : 'Analizar'}
