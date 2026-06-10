@@ -14,6 +14,8 @@ import {
   BookOpen,
   PieChart,
   Wallet,
+  Radar,
+  Dices,
   type LucideIcon,
 } from "lucide-react";
 import { PageHeader } from "@/presentation/components/ui";
@@ -32,9 +34,11 @@ const CALC_MODULES: { to: string; Icon: LucideIcon; title: string; desc: string;
 
 const MARKET_MODULES: { to: string; Icon: LucideIcon; title: string; desc: string; color: string }[] = [
   { to: "/mercado/cotizacion",  Icon: Search,    title: "Cotización",             desc: "Precio en tiempo real + gráfico", color: "#7c3aed" },
+  { to: "/mercado/radar",       Icon: Radar,     title: "Radar de Oportunidades", desc: "Escaneo masivo por convicción",   color: "#dc2626" },
   { to: "/mercado/tecnico",     Icon: LineChart, title: "Análisis Técnico",       desc: "RSI, MACD, Bollinger, ATR",       color: "#0891b2" },
   { to: "/mercado/fundamental", Icon: BookOpen,  title: "Análisis Fundamental",   desc: "Ratios, DCF, dividendos",         color: "#059669" },
   { to: "/mercado/portafolio",  Icon: PieChart,  title: "Portafolio",             desc: "Markowitz, frontera eficiente",   color: "#d97706" },
+  { to: "/mercado/montecarlo",  Icon: Dices,     title: "Monte Carlo",            desc: "Proyección probabilística + DCA", color: "#7c3aed" },
   { to: "/mercado/bonos",       Icon: Wallet,    title: "Bonos (API)",            desc: "Precio, YTM, Duración, DV01",     color: "#dc2626" },
 ];
 

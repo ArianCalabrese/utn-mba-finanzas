@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     'apps.macro',
     'apps.alerts',
     'apps.watchlist',
+    'apps.scanner',
 ]
 
 MIDDLEWARE = [

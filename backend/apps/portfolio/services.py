@@ -178,6 +178,116 @@ def backtest_portfolio(
     }
 
 
+# ─── Simulación Monte Carlo ──────────────────────────────────────────────────
+
+TRADING_DAYS_PER_MONTH = 21
+
+
+def simulate_montecarlo(
+    tickers: list[str],
+    weights: list[float],
+    initial_investment: float = 10_000,
+    monthly_contribution: float = 0,
+    years: int = 10,
+    n_sims: int = 1_000,
+    target_value: float | None = None,
+    method: str = 'bootstrap',
+) -> dict:
+    """Proyecta el valor futuro de una cartera con aportes mensuales (DCA).
+
+    - 'bootstrap': remuestrea retornos diarios históricos (5 años) de la
+      cartera ponderada, sin asumir normalidad (conserva colas gordas).
+    - 'normal': GBM clásico con media/volatilidad log-normales históricas.
+
+    El aporte mensual se acredita al cierre de cada mes, después del retorno.
+    """
+    years = int(max(1, min(years, 40)))
+    n_sims = int(max(100, min(n_sims, 5_000)))
+    months = years * 12
+
+    returns = _daily_returns(tickers, period='5y')
+    available = [t.upper() for t in tickers if t.upper() in returns.columns]
+    if not available:
+        raise ValueError('No price data retrieved for the provided tickers.')
+
+    w = np.array(weights[: len(available)], dtype=float)
+    w /= w.sum()
+    port_ret = (returns[available].to_numpy() @ w)
+
+    log_ret = np.log1p(port_ret)
+    mu_ann = float(log_ret.mean()) * 252
+    sigma_ann = float(log_ret.std()) * np.sqrt(252)
+
+    rng = np.random.default_rng()
+    if method == 'normal':
+        monthly_log = rng.normal(
+            mu_ann / 12, sigma_ann / np.sqrt(12), size=(n_sims, months),
+        )
+        growth = np.exp(monthly_log)
+    else:
+        # iid bootstrap de días históricos, agregados en meses de 21 ruedas
+        sampled = rng.choice(port_ret, size=(n_sims, months, TRADING_DAYS_PER_MONTH), replace=True)
+        growth = np.prod(1 + sampled, axis=2)
+
+    values = np.empty((n_sims, months + 1))
+    values[:, 0] = initial_investment
+    for m in range(1, months + 1):
+        values[:, m] = values[:, m - 1] * growth[:, m - 1] + monthly_contribution
+
+    percentiles = {p: np.percentile(values, p, axis=0) for p in (5, 25, 50, 75, 95)}
+    invested = initial_investment + monthly_contribution * np.arange(months + 1)
+
+    # Muestreo de la línea de tiempo: mensual hasta 10 años, trimestral después.
+    step = 1 if months <= 120 else 3
+    timeline = [
+        {
+            'month': m,
+            'invested': round(float(invested[m]), 2),
+            'p5': round(float(percentiles[5][m]), 2),
+            'p25': round(float(percentiles[25][m]), 2),
+            'p50': round(float(percentiles[50][m]), 2),
+            'p75': round(float(percentiles[75][m]), 2),
+            'p95': round(float(percentiles[95][m]), 2),
+        }
+        for m in range(0, months + 1, step)
+    ]
+    if timeline[-1]['month'] != months:
+        timeline.append({
+            'month': months,
+            'invested': round(float(invested[months]), 2),
+            **{f'p{p}': round(float(percentiles[p][months]), 2) for p in (5, 25, 50, 75, 95)},
+        })
+
+    finals = values[:, -1]
+    invested_total = float(invested[-1])
+    final = {
+        'mean': round(float(finals.mean()), 2),
+        **{f'p{p}': round(float(np.percentile(finals, p)), 2) for p in (5, 25, 50, 75, 95)},
+        'prob_loss_pct': round(float((finals < invested_total).mean() * 100), 1),
+        'median_multiple': round(float(np.median(finals)) / invested_total, 2) if invested_total else None,
+    }
+    if target_value:
+        final['target_value'] = float(target_value)
+        final['prob_target_pct'] = round(float((finals >= target_value).mean() * 100), 1)
+
+    return {
+        'method': method,
+        'years': years,
+        'months': months,
+        'n_sims': n_sims,
+        'initial_investment': initial_investment,
+        'monthly_contribution': monthly_contribution,
+        'invested_total': round(invested_total, 2),
+        'weights': {t: round(float(wi), 4) for t, wi in zip(available, w)},
+        'historical': {
+            'annual_return_pct': round(float(np.exp(mu_ann) - 1) * 100, 2),
+            'annual_volatility_pct': round(float(sigma_ann) * 100, 2),
+        },
+        'timeline': timeline,
+        'final': final,
+    }
+
+
 # ─── Seguimiento de tenencias reales (Fase 1) ────────────────────────────────
 
 def get_fx_rate(frm: str, to: str) -> float | None:

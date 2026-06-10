@@ -67,6 +67,61 @@ export function backtestPortfolio(
   });
 }
 
+// ─── Simulación Monte Carlo ──────────────────────────────────────────────────
+
+export type MonteCarloMethod = 'bootstrap' | 'normal';
+
+export interface MonteCarloPoint {
+  month: number;
+  invested: number;
+  p5: number;
+  p25: number;
+  p50: number;
+  p75: number;
+  p95: number;
+}
+
+export interface MonteCarloResult {
+  method: MonteCarloMethod;
+  years: number;
+  months: number;
+  n_sims: number;
+  initial_investment: number;
+  monthly_contribution: number;
+  invested_total: number;
+  weights: Record<string, number>;
+  historical: { annual_return_pct: number; annual_volatility_pct: number };
+  timeline: MonteCarloPoint[];
+  final: {
+    mean: number;
+    p5: number;
+    p25: number;
+    p50: number;
+    p75: number;
+    p95: number;
+    prob_loss_pct: number;
+    median_multiple: number | null;
+    target_value?: number;
+    prob_target_pct?: number;
+  };
+}
+
+export function simulateMonteCarlo(params: {
+  tickers: string[];
+  weights: number[];
+  initial_investment: number;
+  monthly_contribution: number;
+  years: number;
+  n_sims?: number;
+  target_value?: number | null;
+  method?: MonteCarloMethod;
+}): Promise<MonteCarloResult> {
+  return apiFetch('/portfolio/montecarlo/', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
 // ─── Seguimiento de tenencias reales ─────────────────────────────────────────
 
 export type TxnSide = 'BUY' | 'SELL';

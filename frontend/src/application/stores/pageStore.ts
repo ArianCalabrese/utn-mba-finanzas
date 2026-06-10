@@ -27,24 +27,58 @@ interface FundamentalState {
   activeTab: string;
 }
 
+interface RadarState {
+  source: string;
+  universe: string;
+  watchlistId: string;
+  portfolioId: string;
+  manualTickers: string[];
+  result: AnyData;
+}
+
+interface MonteCarloState {
+  rows: { ticker: string; weight: string }[];
+  initial: string;
+  monthly: string;
+  years: string;
+  target: string;
+  method: string;
+  nSims: string;
+  result: AnyData;
+}
+
 interface PageStore {
   quote: QuoteState;
   technical: TechnicalState;
   fundamental: FundamentalState;
+  radar: RadarState;
+  montecarlo: MonteCarloState;
   setQuote: (s: Partial<QuoteState>) => void;
   setTechnical: (s: Partial<TechnicalState>) => void;
   setFundamental: (s: Partial<FundamentalState>) => void;
+  setRadar: (s: Partial<RadarState>) => void;
+  setMonteCarlo: (s: Partial<MonteCarloState>) => void;
 }
 
 const defaultQuote: QuoteState = { ticker: '', quote: null, history: [] };
 const defaultTechnical: TechnicalState = { ticker: '', indicators: null, signals: null, conviction: null, tab: 'indicadores' };
 const defaultFundamental: FundamentalState = { ticker: '', ratios: null, dcf: null, dividends: null, activeTab: 'ratios' };
+const defaultRadar: RadarState = { source: 'universe', universe: 'megacaps_us', watchlistId: '', portfolioId: '', manualTickers: [], result: null };
+const defaultMonteCarlo: MonteCarloState = {
+  rows: [{ ticker: '', weight: '' }],
+  initial: '10000', monthly: '500', years: '10', target: '', method: 'bootstrap', nSims: '1000',
+  result: null,
+};
 
 export const usePageStore = create<PageStore>((set) => ({
   quote: defaultQuote,
   technical: defaultTechnical,
   fundamental: defaultFundamental,
+  radar: defaultRadar,
+  montecarlo: defaultMonteCarlo,
   setQuote: (s) => set((st) => ({ quote: { ...st.quote, ...s } })),
   setTechnical: (s) => set((st) => ({ technical: { ...st.technical, ...s } })),
   setFundamental: (s) => set((st) => ({ fundamental: { ...st.fundamental, ...s } })),
+  setRadar: (s) => set((st) => ({ radar: { ...st.radar, ...s } })),
+  setMonteCarlo: (s) => set((st) => ({ montecarlo: { ...st.montecarlo, ...s } })),
 }));

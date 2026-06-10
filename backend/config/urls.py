@@ -23,4 +23,5 @@ urlpatterns = [
     path('api/macro/', include('apps.macro.urls')),
     path('api/alerts/', include('apps.alerts.urls')),
     path('api/watchlist/', include('apps.watchlist.urls')),
+    path('api/scanner/', include('apps.scanner.urls')),
 ]

@@ -22,6 +22,8 @@ import { WatchlistPage }        from "@/presentation/pages/WatchlistPage";
 import { BondsApiPage }         from "@/presentation/pages/BondsApiPage";
 import { MacroPage }            from "@/presentation/pages/MacroPage";
 import { AlertsPage }           from "@/presentation/pages/AlertsPage";
+import { OpportunityRadarPage } from "@/presentation/pages/OpportunityRadarPage";
+import { MonteCarloPage }       from "@/presentation/pages/MonteCarloPage";
 
 export default function App() {
   return (
@@ -53,6 +55,8 @@ export default function App() {
                 <Route path="/mercado/bonos"          element={<BondsApiPage />} />
                 <Route path="/mercado/macro"          element={<MacroPage />} />
                 <Route path="/mercado/alertas"        element={<AlertsPage />} />
+                <Route path="/mercado/radar"          element={<OpportunityRadarPage />} />
+                <Route path="/mercado/montecarlo"     element={<MonteCarloPage />} />
                 <Route path="*"                      element={<Navigate to="/" replace />} />
               </Routes>
             </AppLayout>

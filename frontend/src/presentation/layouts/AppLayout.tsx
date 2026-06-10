@@ -16,6 +16,8 @@ import {
   Wallet,
   Globe,
   Bell,
+  Radar,
+  Dices,
   type LucideIcon,
 } from "lucide-react";
 import { UserMenu } from "@/presentation/components/UserMenu";
@@ -36,9 +38,11 @@ const CALC_NAV: { to: string; Icon: LucideIcon; label: string; end?: boolean }[]
 
 const MARKET_NAV: { to: string; Icon: LucideIcon; label: string }[] = [
   { to: "/mercado/cotizacion", Icon: Search, label: "Cotización" },
+  { to: "/mercado/radar", Icon: Radar, label: "Radar de Oportunidades" },
   { to: "/mercado/tecnico", Icon: LineChart, label: "Análisis Técnico" },
   { to: "/mercado/fundamental", Icon: BookOpen, label: "Análisis Fundamental" },
   { to: "/mercado/portafolio", Icon: PieChart, label: "Optimización" },
+  { to: "/mercado/montecarlo", Icon: Dices, label: "Monte Carlo" },
   { to: "/mercado/bonos", Icon: Wallet, label: "Bonos" },
   { to: "/mercado/macro", Icon: Globe, label: "Régimen Macro" },
   { to: "/mercado/alertas", Icon: Bell, label: "Alertas DCA" },

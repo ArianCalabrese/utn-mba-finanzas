@@ -5,7 +5,7 @@ from .models import Portfolio, Transaction
 from .serializers import PortfolioSerializer, TransactionSerializer
 from .services import (
     optimize_portfolio, compute_var, compute_correlation, backtest_portfolio,
-    build_summary,
+    build_summary, simulate_montecarlo,
 )
 
 
@@ -63,6 +63,48 @@ class BacktestView(APIView):
             )
         try:
             return Response(backtest_portfolio(tickers, weights, period))
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class MonteCarloView(APIView):
+    def post(self, request):
+        tickers = request.data.get('tickers', [])
+        weights = request.data.get('weights', [])
+        if not tickers or not weights or len(tickers) != len(weights):
+            return Response(
+                {'error': 'tickers and weights must be non-empty arrays of equal length.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(tickers) > 15:
+            return Response({'error': 'Maximum 15 tickers allowed.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        method = request.data.get('method', 'bootstrap')
+        if method not in ('bootstrap', 'normal'):
+            return Response({'error': "method must be 'bootstrap' or 'normal'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            initial = float(request.data.get('initial_investment', 10_000))
+            monthly = float(request.data.get('monthly_contribution', 0))
+            years = int(request.data.get('years', 10))
+            n_sims = int(request.data.get('n_sims', 1_000))
+            raw_target = request.data.get('target_value')
+            target = float(raw_target) if raw_target not in (None, '') else None
+        except (TypeError, ValueError):
+            return Response({'error': 'Parámetros numéricos inválidos.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if initial < 0 or monthly < 0 or (initial == 0 and monthly == 0):
+            return Response(
+                {'error': 'Indicá un capital inicial y/o un aporte mensual mayor a cero.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            return Response(simulate_montecarlo(
+                tickers, weights,
+                initial_investment=initial, monthly_contribution=monthly,
+                years=years, n_sims=n_sims, target_value=target, method=method,
+            ))
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

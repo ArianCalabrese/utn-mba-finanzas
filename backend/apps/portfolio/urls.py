@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (
-    OptimizeView, VaRView, CorrelationView, BacktestView,
+    OptimizeView, VaRView, CorrelationView, BacktestView, MonteCarloView,
     PortfolioListView, PortfolioDetailView,
     TransactionListView, TransactionDetailView,
     PortfolioSummaryView, HoldingTickersView,
@@ -12,6 +12,7 @@ urlpatterns = [
     path('var/', VaRView.as_view()),
     path('correlation/', CorrelationView.as_view()),
     path('backtest/', BacktestView.as_view()),
+    path('montecarlo/', MonteCarloView.as_view()),
     # Seguimiento de tenencias (persistido por usuario)
     path('portfolios/', PortfolioListView.as_view()),
     path('portfolios/<int:pk>/', PortfolioDetailView.as_view()),
