@@ -18,14 +18,41 @@ export interface DcfParams {
   years?: number;
 }
 
+export interface WaccBreakdown {
+  method: 'capm' | 'user';
+  risk_free_rate?: number;
+  beta?: number;
+  equity_risk_premium?: number;
+  cost_of_equity?: number;
+  cost_of_debt_after_tax?: number;
+  tax_rate?: number;
+  weight_equity?: number;
+  weight_debt?: number;
+}
+
+export interface MonteCarloDcf {
+  runs: number;
+  intrinsic_value_per_share: { p10: number; bear: number; median: number; bull: number; p90: number };
+  prob_undervalued_pct?: number;
+}
+
 export interface DcfResult {
   ticker: string;
+  applicable: boolean;
+  reason?: string;
   assumptions: { wacc: number; terminal_growth_rate: number; fcf_growth_rate: number; projection_years: number };
+  wacc_breakdown?: WaccBreakdown;
   base_fcf: number;
+  base_fcf_method?: 'normalized_fcf_margin' | 'median_fcf';
+  latest_fcf?: number;
+  fcf_margin_used?: number | null;
+  growth_source?: 'revenue_cagr' | 'revenue_growth_ttm';
+  growth_path?: number[];
   projected_fcf: number[];
   pv_fcf: number[];
   terminal_value: number;
   pv_terminal_value: number;
+  terminal_value_weight_pct?: number | null;
   total_pv: number;
   net_debt: number;
   equity_value: number;
@@ -33,6 +60,7 @@ export interface DcfResult {
   intrinsic_value_per_share: number | null;
   current_price: number | null;
   margin_of_safety_pct: number | null;
+  monte_carlo?: MonteCarloDcf | null;
 }
 
 export function getDcf(ticker: string, params: DcfParams = {}): Promise<DcfResult> {
