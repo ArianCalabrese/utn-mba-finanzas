@@ -24,4 +24,5 @@ urlpatterns = [
     path('api/alerts/', include('apps.alerts.urls')),
     path('api/watchlist/', include('apps.watchlist.urls')),
     path('api/scanner/', include('apps.scanner.urls')),
+    path('api/screener/', include('apps.screener.urls')),
 ]

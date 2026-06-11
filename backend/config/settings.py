@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'apps.alerts',
     'apps.watchlist',
     'apps.scanner',
+    'apps.screener',
 ]
 
 MIDDLEWARE = [

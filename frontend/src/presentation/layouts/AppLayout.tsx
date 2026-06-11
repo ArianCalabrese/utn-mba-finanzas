@@ -17,6 +17,7 @@ import {
   Globe,
   Bell,
   Radar,
+  Filter,
   Dices,
   type LucideIcon,
 } from "lucide-react";
@@ -38,6 +39,7 @@ const CALC_NAV: { to: string; Icon: LucideIcon; label: string; end?: boolean }[]
 
 const MARKET_NAV: { to: string; Icon: LucideIcon; label: string }[] = [
   { to: "/mercado/cotizacion", Icon: Search, label: "Cotización" },
+  { to: "/mercado/screener", Icon: Filter, label: "Screener" },
   { to: "/mercado/radar", Icon: Radar, label: "Radar de Oportunidades" },
   { to: "/mercado/tecnico", Icon: LineChart, label: "Análisis Técnico" },
   { to: "/mercado/fundamental", Icon: BookOpen, label: "Análisis Fundamental" },

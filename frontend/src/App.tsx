@@ -23,6 +23,7 @@ import { BondsApiPage }         from "@/presentation/pages/BondsApiPage";
 import { MacroPage }            from "@/presentation/pages/MacroPage";
 import { AlertsPage }           from "@/presentation/pages/AlertsPage";
 import { OpportunityRadarPage } from "@/presentation/pages/OpportunityRadarPage";
+import { ScreenerPage }         from "@/presentation/pages/ScreenerPage";
 import { MonteCarloPage }       from "@/presentation/pages/MonteCarloPage";
 
 export default function App() {
@@ -56,6 +57,7 @@ export default function App() {
                 <Route path="/mercado/macro"          element={<MacroPage />} />
                 <Route path="/mercado/alertas"        element={<AlertsPage />} />
                 <Route path="/mercado/radar"          element={<OpportunityRadarPage />} />
+                <Route path="/mercado/screener"       element={<ScreenerPage />} />
                 <Route path="/mercado/montecarlo"     element={<MonteCarloPage />} />
                 <Route path="*"                      element={<Navigate to="/" replace />} />
               </Routes>
