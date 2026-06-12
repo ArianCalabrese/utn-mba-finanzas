@@ -318,11 +318,11 @@ export function FundamentalPage() {
 
   const r = ratios as Record<string, Record<string, number | null>> | null;
 
-  const dcfBarData = dcf
+  const dcfBarData = dcf && dcf.applicable !== false && dcf.projected_fcf && dcf.pv_fcf
     ? dcf.projected_fcf.map((v, i) => ({
         year: `Año ${i + 1}`,
         fcf: Math.round(v / 1e6),
-        pv: Math.round(dcf.pv_fcf[i] / 1e6),
+        pv: Math.round(dcf.pv_fcf![i] / 1e6),
       }))
     : [];
 

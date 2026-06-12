@@ -48,8 +48,8 @@ export interface DcfResult {
   fcf_margin_used?: number | null;
   growth_source?: 'revenue_cagr' | 'revenue_growth_ttm';
   growth_path?: number[];
-  projected_fcf: number[];
-  pv_fcf: number[];
+  projected_fcf?: number[];
+  pv_fcf?: number[];
   terminal_value: number;
   pv_terminal_value: number;
   terminal_value_weight_pct?: number | null;
